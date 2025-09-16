@@ -1,0 +1,32 @@
+server:
+  port: 8888
+
+app:
+  api-prefix: /api/v1
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: identity_service
+              uri: http://localhost:8080
+              predicates:
+                - Path=${app.api-prefix}/identity/**
+              filters:
+                - StripPrefix=2
+            - id: user_service
+              uri: http://localhost:8081
+              predicates:
+                - Path=${app.api-prefix}/profile/users/**
+              filters:
+                - StripPrefix=2
+            - id: notification_service
+              uri: http://localhost:8082
+              predicates:
+                - Path=${app.api-prefix}/notification/**
+              filters:
+                - StripPrefix=2
