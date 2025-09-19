@@ -1,18 +1,20 @@
 package com.tien.identityservice.service;
 
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
 import com.tien.identityservice.dto.request.PermissionRequest;
 import com.tien.identityservice.dto.response.PermissionResponse;
 import com.tien.identityservice.entity.Permission;
 import com.tien.identityservice.mapper.PermissionMapper;
 import com.tien.identityservice.repository.PermissionRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 // PermissionService: Chịu trách nhiệm xử lý nghiệp vụ liên quan đến Permission:
 //          - Tạo permission mới từ request.

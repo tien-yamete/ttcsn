@@ -1,8 +1,9 @@
 package com.tien.userservice.dto.response;
 
-import lombok.experimental.FieldDefaults;
-
 import java.time.LocalDate;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 @Data
 @NoArgsConstructor

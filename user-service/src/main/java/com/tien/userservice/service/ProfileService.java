@@ -1,5 +1,11 @@
 package com.tien.userservice.service;
 
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
 import com.tien.userservice.dto.request.ProfileCreationRequest;
 import com.tien.userservice.dto.request.SearchUserRequest;
 import com.tien.userservice.dto.request.UpdateProfileRequest;
@@ -9,15 +15,11 @@ import com.tien.userservice.exception.AppException;
 import com.tien.userservice.exception.ErrorCode;
 import com.tien.userservice.mapper.ProfileMapper;
 import com.tien.userservice.repository.ProfileRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

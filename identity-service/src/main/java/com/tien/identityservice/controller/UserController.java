@@ -1,18 +1,21 @@
 package com.tien.identityservice.controller;
 
+import java.util.List;
+
+import jakarta.validation.Valid;
+
+import org.springframework.web.bind.annotation.*;
+
 import com.tien.identityservice.dto.ApiResponse;
 import com.tien.identityservice.dto.request.UserCreationRequest;
 import com.tien.identityservice.dto.request.UserUpdateRequest;
 import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.service.UserService;
-import jakarta.validation.Valid;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 // UserController:Chịu trách nhiệm xử lý các API quản lý người dùng trong hệ thống:
 //          - POST   /users              : Tạo mới một user.

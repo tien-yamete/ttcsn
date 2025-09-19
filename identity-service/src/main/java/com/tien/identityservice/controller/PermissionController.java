@@ -1,16 +1,18 @@
 package com.tien.identityservice.controller;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.*;
+
 import com.tien.identityservice.dto.ApiResponse;
 import com.tien.identityservice.dto.request.PermissionRequest;
 import com.tien.identityservice.dto.response.PermissionResponse;
 import com.tien.identityservice.service.PermissionService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 // PermissionController: Chịu trách nhiệm xử lý các API quản lý quyền (permission):
 //          - POST   /permissions           : Tạo mới một quyền.

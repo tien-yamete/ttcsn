@@ -1,5 +1,15 @@
 package com.tien.identityservice.service;
 
+import java.util.HashSet;
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.tien.event.dto.NotificationEvent;
 import com.tien.identityservice.constant.PredefinedRole;
 import com.tien.identityservice.dto.request.UserCreationRequest;
@@ -14,19 +24,11 @@ import com.tien.identityservice.mapper.UserMapper;
 import com.tien.identityservice.repository.RoleRepository;
 import com.tien.identityservice.repository.UserRepository;
 import com.tien.identityservice.repository.httpclient.ProfileClient;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
-import java.util.HashSet;
-import java.util.List;
 
 // UserService: Nghiệp vụ quản lý người dùng:
 //         - Tạo user (mã hoá mật khẩu, set role mặc định).
@@ -79,11 +81,25 @@ public class UserService {
 
         var profile = profileClient.createProfile(profileRequest);
 
+        String body = String.format("""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+                <h2 style="color:#4CAF50;">Welcome to Frendify 🎉</h2>
+                <p>Hello <strong>%s</strong>,</p>
+                <p>We’re excited to have you on board. Your journey starts here 🚀</p>
+                <hr/>
+                <p style="font-size: 12px; color: #888;">
+                    &copy; 2025 Microservice Inc. All rights reserved.
+                </p>
+            </body>
+        </html>
+        """, request.getUsername());
+
         NotificationEvent notificationEvent = NotificationEvent.builder()
                 .channel("EMAIL")
                 .recipient(request.getEmail())
                 .subject("Welcome to microservice")
-                .body("Hello, " + request.getUsername())
+                .body(body)
                 .build();
 
         // Publish message to kafka

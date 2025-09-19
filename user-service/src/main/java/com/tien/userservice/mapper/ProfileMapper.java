@@ -1,11 +1,12 @@
 package com.tien.userservice.mapper;
 
+import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
+
 import com.tien.userservice.dto.request.ProfileCreationRequest;
 import com.tien.userservice.dto.request.UpdateProfileRequest;
 import com.tien.userservice.dto.response.ProfileResponse;
 import com.tien.userservice.entity.Profile;
-import org.mapstruct.Mapper;
-import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
 public interface ProfileMapper {

@@ -1,12 +1,12 @@
 package com.tien.identityservice.dto.request;
 
+import java.util.Set;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-
-import java.util.Set;
 
 @Getter
 @AllArgsConstructor

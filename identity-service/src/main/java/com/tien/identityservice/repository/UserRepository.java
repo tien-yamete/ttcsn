@@ -1,10 +1,11 @@
 package com.tien.identityservice.repository;
 
-import com.tien.identityservice.entity.User;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.tien.identityservice.entity.User;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {

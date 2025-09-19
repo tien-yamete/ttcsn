@@ -1,22 +1,24 @@
 package com.tien.identityservice.configuration;
 
-import com.tien.identityservice.constant.PredefinedRole;
-import com.tien.identityservice.entity.Role;
-import com.tien.identityservice.entity.User;
-import com.tien.identityservice.repository.RoleRepository;
-import com.tien.identityservice.repository.UserRepository;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.HashSet;
-import java.util.Set;
+import com.tien.identityservice.constant.PredefinedRole;
+import com.tien.identityservice.entity.Role;
+import com.tien.identityservice.entity.User;
+import com.tien.identityservice.repository.RoleRepository;
+import com.tien.identityservice.repository.UserRepository;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 // Seed dữ liệu khởi tạo khi ứng dụng chạy lần đầu: tạo các Role mặc định và User admin.
 

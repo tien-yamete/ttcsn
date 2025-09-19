@@ -2,6 +2,10 @@ package com.tien.userservice.entity;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.*;
+
+import lombok.*;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
