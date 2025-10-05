@@ -32,4 +32,7 @@ public class User {
 
     @ManyToMany
     Set<Role> roles;
+
+    @Builder.Default
+    Boolean isActive = true;
 }

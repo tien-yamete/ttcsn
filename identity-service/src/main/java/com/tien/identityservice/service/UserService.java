@@ -3,6 +3,7 @@ package com.tien.identityservice.service;
 import java.util.HashSet;
 import java.util.List;
 
+import com.tien.identityservice.constant.EmailTemplate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,12 +31,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// UserService: Nghiệp vụ quản lý người dùng:
-//         - Tạo user (mã hoá mật khẩu, set role mặc định).
-//         - Lấy danh sách / chi tiết user (ràng buộc phân quyền).
-//         - Cập nhật / xoá user.
-//         - Lấy thông tin user hiện tại từ SecurityContext.
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -55,11 +50,6 @@ public class UserService {
 
     KafkaTemplate<String, Object> kafkaTemplate;
 
-    //    Tạo user mới.
-    //            - Check trùng username.
-    //            - Map DTO -> Entity.
-    //            - Mã hoá mật khẩu.
-    //            - Gán role mặc định USER.
     public UserResponse createUser(UserCreationRequest request) {
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -81,25 +71,11 @@ public class UserService {
 
         var profile = profileClient.createProfile(profileRequest);
 
-        String body = String.format("""
-        <html>
-            <body style="font-family: Arial, sans-serif; color: #333;">
-                <h2 style="color:#4CAF50;">Welcome to Frendify 🎉</h2>
-                <p>Hello <strong>%s</strong>,</p>
-                <p>We’re excited to have you on board. Your journey starts here 🚀</p>
-                <hr/>
-                <p style="font-size: 12px; color: #888;">
-                    &copy; 2025 Microservice Inc. All rights reserved.
-                </p>
-            </body>
-        </html>
-        """, request.getUsername());
-
         NotificationEvent notificationEvent = NotificationEvent.builder()
                 .channel("EMAIL")
                 .recipient(request.getEmail())
                 .subject("Welcome to microservice")
-                .body(body)
+                .body(EmailTemplate.welcomeEmail(request.getUsername()))
                 .build();
 
         // Publish message to kafka
@@ -149,4 +125,5 @@ public class UserService {
         return userMapper.toUserResponse(
                 userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
     }
+
 }
