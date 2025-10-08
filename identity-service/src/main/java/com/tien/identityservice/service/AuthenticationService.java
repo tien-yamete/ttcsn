@@ -2,15 +2,30 @@ package com.tien.identityservice.service;
 
 import java.text.ParseException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 
+import com.tien.event.dto.NotificationEvent;
+import com.tien.identityservice.constant.EmailTemplate;
+import com.tien.identityservice.constant.OtpType;
+import com.tien.identityservice.constant.PredefinedRole;
+import com.tien.identityservice.dto.request.*;
+import com.tien.identityservice.dto.response.UserResponse;
+import com.tien.identityservice.entity.Role;
+import com.tien.identityservice.entity.UserOtp;
+import com.tien.identityservice.mapper.ProfileMapper;
+import com.tien.identityservice.mapper.UserMapper;
+import com.tien.identityservice.repository.RoleRepository;
+import com.tien.identityservice.repository.UserOtpRepository;
+import com.tien.identityservice.repository.httpclient.ProfileClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import com.nimbusds.jose.*;
@@ -18,10 +33,6 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.tien.identityservice.dto.request.AuthenticationRequest;
-import com.tien.identityservice.dto.request.IntrospectRequest;
-import com.tien.identityservice.dto.request.LogoutRequest;
-import com.tien.identityservice.dto.request.RefreshTokenRequest;
 import com.tien.identityservice.dto.response.AuthenticationResponse;
 import com.tien.identityservice.dto.response.IntrospectResponse;
 import com.tien.identityservice.entity.InvalidatedToken;
@@ -46,6 +57,20 @@ public class AuthenticationService {
 
     InvalidatedTokenRepository invalidatedTokenRepository;
 
+    ProfileClient profileClient;
+
+    ProfileMapper profileMapper;
+
+    KafkaTemplate<String, Object> kafkaTemplate;
+
+    UserMapper userMapper;
+
+    PasswordEncoder passwordEncoder;
+
+    RoleRepository roleRepository;
+
+    UserOtpRepository userOtpRepository;
+
     @NonFinal
     @Value("${jwt.signerKey}")
     protected String SIGNED_KEY;
@@ -62,8 +87,131 @@ public class AuthenticationService {
     @Value("${jwt.refreshable-duration}")
     protected long REFRESHABLE_DURATION;
 
+    public UserResponse register(UserCreationRequest request) {
+        User user = userMapper.toUser(request);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        HashSet<Role> roles = new HashSet<>();
+        roleRepository.findById(PredefinedRole.USER_ROLE).ifPresent(roles::add);
+        user.setRoles(roles);
+
+        user.setEmailVerified(false);
+        user.setIsActive(false);
+
+        try {
+            user = userRepository.save(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+
+        var profileRequest = profileMapper.toProfileCreationRequest(request);
+        profileRequest.setUserId(user.getId());
+
+        var profile = profileClient.createProfile(profileRequest);
+
+        String otpCode = generateVerificationCode();
+
+        UserOtp userOtp = UserOtp.builder()
+                .user(user)
+                .otpCode(otpCode)
+                .type(OtpType.REGISTER)
+                .expiryTime(LocalDateTime.now().plusMinutes(15))
+                .used(false)
+                .build();
+
+        userOtpRepository.save(userOtp);
+
+        NotificationEvent notificationEvent = NotificationEvent.builder()
+                .channel("EMAIL")
+                .recipient(request.getEmail())
+                .subject("Verify email")
+                .body(EmailTemplate.otpEmail(request.getUsername(), otpCode))
+                .build();
+
+        // Publish message to kafka
+        kafkaTemplate.send("notification-delivery", notificationEvent);
+
+        var userCreationReponse = userMapper.toUserResponse(user);
+        userCreationReponse.setId(profile.getResult().getId());
+
+        return userCreationReponse;
+    }
+
+    @Transactional
+    public void verifyUser(VerifyUserRequest verifyUserRequest) {
+        User user = userRepository.findByEmail(verifyUserRequest.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        UserOtp userOtp = userOtpRepository
+                .findTopByUserAndTypeAndUsedFalseOrderByCreatedAtDesc(user, OtpType.REGISTER)
+                .orElseThrow(() -> new AppException(ErrorCode.OTP_NOT_FOUND));
+
+        if (userOtp.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new AppException(ErrorCode.OTP_EXPIRED);
+        }
+
+        if (!userOtp.getOtpCode().equals(verifyUserRequest.getOtpCode())) {
+            userOtp.setUsed(true); // Đánh dấu OTP sai là đã dùng
+            userOtpRepository.save(userOtp);
+            throw new AppException(ErrorCode.OTP_INVALID);
+        }
+
+
+        user.setEmailVerified(true);
+        user.setIsActive(true);
+        userRepository.save(user);
+
+        userOtp.setUsed(true);
+        userOtpRepository.save(userOtp);
+
+        NotificationEvent notificationEvent = NotificationEvent.builder()
+                .channel("EMAIL")
+                .recipient(verifyUserRequest.getEmail())
+                .subject("Welcome to Friendify")
+                .body(EmailTemplate.welcomeEmail(user.getUsername()))
+                .build();
+
+        // Publish message to kafka
+        kafkaTemplate.send("notification-delivery", notificationEvent);
+    }
+
+    @Transactional
+    public void resendVerificationCode(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        if (user.getIsActive() && user.isEmailVerified()) {
+            throw new AppException(ErrorCode.USER_ALREADY_VERIFIED);
+        }
+
+        Optional<UserOtp> lastOtp = userOtpRepository
+                .findTopByUserAndTypeAndUsedFalseOrderByCreatedAtDesc(user, OtpType.REGISTER);
+        if (lastOtp.isPresent() && lastOtp.get().getCreatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
+            throw new AppException(ErrorCode.OTP_TOO_FREQUENT);
+        }
+
+        userOtpRepository.deactivateOldOtp(user.getId(), OtpType.REGISTER);
+
+        String otpCode = generateVerificationCode();
+
+        UserOtp newOtp = UserOtp.builder()
+                .user(user)
+                .otpCode(otpCode)
+                .type(OtpType.REGISTER)
+                .expiryTime(LocalDateTime.now().plusMinutes(15))
+                .used(false)
+                .build();
+
+        userOtpRepository.save(newOtp);
+        NotificationEvent otpMail = NotificationEvent.builder()
+                .channel("EMAIL")
+                .recipient(user.getEmail())
+                .subject("New verification code")
+                .body(EmailTemplate.resendVerificationEmail(user.getUsername(), otpCode))
+                .build();
+
+        kafkaTemplate.send("notification-delivery", otpMail);
+    }
     //    Introspect: kiểm tra token có hợp lệ hay không.
-    //             - Không ném lỗi ra ngoài, chỉ trả về cờ true/false.
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
 
@@ -80,14 +228,18 @@ public class AuthenticationService {
 
     // Xác thực username/password và phát access token.
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         var user = userRepository
                 .findByUsername(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!authenticated) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        if (!user.getIsActive()) {
+            throw new AppException(ErrorCode.USER_DISABLED);
         }
 
         var token = generateToken(user);
@@ -96,7 +248,6 @@ public class AuthenticationService {
     }
 
     //    Logout: revoke token hiện tại (lưu vào bảng invalidated_token).
-    //             - Nếu token đã hết hạn thì bỏ qua (đã không còn giá trị).
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
         try {
             var signToken = verifyToken(request.getToken(), true);
@@ -114,10 +265,6 @@ public class AuthenticationService {
         }
     }
 
-    //    Refresh token:
-    //             - Verify token theo mode refresh (dựa trên issueTime + REFRESHABLE_DURATION).
-    //             - Revoke token cũ.
-    //             - Phát access token mới cho user tương ứng.
     public AuthenticationResponse refreshToken(RefreshTokenRequest request) throws JOSEException, ParseException {
         var signJWT = verifyToken(request.getToken(), true);
 
@@ -142,10 +289,6 @@ public class AuthenticationService {
         return AuthenticationResponse.builder().token(token).authenticated(true).build();
     }
 
-    //    Verify token:
-    //             - Kiểm tra chữ ký HMAC.
-    //             - Kiểm tra hạn (access: exp; refresh: iat + REFRESHABLE_DURATION).
-    //             - Kiểm tra token đã bị revoke chưa.
     private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNED_KEY.getBytes());
 
@@ -172,13 +315,6 @@ public class AuthenticationService {
         return signedJWT;
     }
 
-    // Tạo token
-    //    Phát access token HS512.
-    //             - subject  : username của user.
-    //             - issuer   : ISSUER.
-    //             - iat/exp  : issue/expire theo VALID_DURATION.
-    //             - jti      : random UUID, hỗ trợ revoke.
-    //             - scope    : ghép từ role/permission (dạng chuỗi cách nhau bởi space).
     private String generateToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
@@ -205,9 +341,6 @@ public class AuthenticationService {
         }
     }
 
-    // Tạo chuỗi scope từ roles và permissions của user
-    //             - Mỗi role tạo 1 entry "ROLE_{roleName}".
-    //             - Mỗi permission của role thêm đúng tên permission.
     private String buildScope(User user) {
         StringJoiner stringJoiner = new StringJoiner(" ");
 
@@ -219,5 +352,11 @@ public class AuthenticationService {
             });
 
         return stringJoiner.toString();
+    }
+
+    private String generateVerificationCode() {
+        Random random = new Random();
+        int code = random.nextInt(900000) + 100000;
+        return String.valueOf(code);
     }
 }

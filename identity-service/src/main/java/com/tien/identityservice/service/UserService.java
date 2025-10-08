@@ -3,28 +3,19 @@ package com.tien.identityservice.service;
 import java.util.HashSet;
 import java.util.List;
 
-import com.tien.identityservice.constant.EmailTemplate;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.tien.event.dto.NotificationEvent;
-import com.tien.identityservice.constant.PredefinedRole;
-import com.tien.identityservice.dto.request.UserCreationRequest;
 import com.tien.identityservice.dto.request.UserUpdateRequest;
 import com.tien.identityservice.dto.response.UserResponse;
-import com.tien.identityservice.entity.Role;
 import com.tien.identityservice.entity.User;
 import com.tien.identityservice.exception.AppException;
 import com.tien.identityservice.exception.ErrorCode;
-import com.tien.identityservice.mapper.ProfileMapper;
 import com.tien.identityservice.mapper.UserMapper;
 import com.tien.identityservice.repository.RoleRepository;
 import com.tien.identityservice.repository.UserRepository;
-import com.tien.identityservice.repository.httpclient.ProfileClient;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -43,49 +34,6 @@ public class UserService {
     PasswordEncoder passwordEncoder;
 
     RoleRepository roleRepository;
-
-    ProfileClient profileClient;
-
-    ProfileMapper profileMapper;
-
-    KafkaTemplate<String, Object> kafkaTemplate;
-
-    public UserResponse createUser(UserCreationRequest request) {
-        User user = userMapper.toUser(request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        HashSet<Role> roles = new HashSet<>();
-
-        roleRepository.findById(PredefinedRole.USER_ROLE).ifPresent(roles::add);
-
-        user.setRoles(roles);
-        user.setEmailVerified(false);
-
-        try {
-            user = userRepository.save(user);
-        } catch (DataIntegrityViolationException exception) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
-
-        var profileRequest = profileMapper.toProfileCreationRequest(request);
-        profileRequest.setUserId(user.getId());
-
-        var profile = profileClient.createProfile(profileRequest);
-
-        NotificationEvent notificationEvent = NotificationEvent.builder()
-                .channel("EMAIL")
-                .recipient(request.getEmail())
-                .subject("Welcome to microservice")
-                .body(EmailTemplate.welcomeEmail(request.getUsername()))
-                .build();
-
-        // Publish message to kafka
-        kafkaTemplate.send("notification-delivery", notificationEvent);
-
-        var userCreationReponse = userMapper.toUserResponse(user);
-        userCreationReponse.setId(profile.getResult().getId());
-
-        return userCreationReponse;
-    }
 
     public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();
@@ -125,5 +73,4 @@ public class UserService {
         return userMapper.toUserResponse(
                 userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
     }
-
 }

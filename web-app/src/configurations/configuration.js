@@ -4,7 +4,9 @@ export const CONFIG = {
 
 export const API = {
   LOGIN: "/identity/auth/token",
-  REGISTER: "/identity/users/registration",
+  REGISTER: "/identity/auth/registration",
+  VERIFY_USER: "/identity/auth/verify-user",
+  RESEND_OTP: "/identity/auth/resend-verification",
   MY_INFO: "/profile/users/my-profile",
   MY_POST: "/post/my-posts",
   CREATE_POST: "/post/create",

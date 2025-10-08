@@ -33,7 +33,6 @@ public class ApplicationInitConfig {
     static final String ADMIN_USERNAME = "admin";
     static final String ADMIN_PASSWORD = "admin";
 
-    // Bean này chỉ được tạo khi ứng dụng dùng MySQL driver tương ứng.
     @Bean
     @ConditionalOnProperty(
             prefix = "spring",

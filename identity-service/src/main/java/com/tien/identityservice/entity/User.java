@@ -27,12 +27,13 @@ public class User {
     @Column(name = "email", unique = true, columnDefinition = "VARCHAR(255) COLLATE utf8mb4_unicode_ci")
     String email;
 
+    @Builder.Default
     @Column(name = "email_verified", nullable = false, columnDefinition = "boolean default false")
-    boolean emailVerified;
+    boolean emailVerified = false;
 
     @ManyToMany
     Set<Role> roles;
 
     @Builder.Default
-    Boolean isActive = true;
+    Boolean isActive = false;
 }

@@ -15,12 +15,12 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import GoogleIcon from "@mui/icons-material/Google";
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { registerAccount } from "../services/authenticationService";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import IconButton from "@mui/material/IconButton";
+import React, { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { registerAccount } from "../services/authenticationService";
 import LoginLeftPanel from "../components/LoginLeftPanel";
 
 export default function Register() {
@@ -36,8 +36,14 @@ export default function Register() {
     message: "",
     severity: "error",
   });
-
   const [showPassword, setShowPassword] = useState(false);
+
+  // 🧹 Dọn cờ verify cũ nếu user quay lại trang đăng ký
+  useEffect(() => {
+    localStorage.removeItem("verifyEmail");
+    localStorage.removeItem("verifyContext");
+    localStorage.removeItem("verifyIssuedAt");
+  }, []);
 
   const validate = () => {
     const e = {};
@@ -61,18 +67,27 @@ export default function Register() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const res = await registerAccount({
+      const payload = {
         username: username.trim(),
         email: email.trim(),
         password,
-      });
+      };
+      const res = await registerAccount(payload);
+
       if (res?.status === 200 || res?.status === 201) {
+        // ✅ Đặt cờ để Verify page cho phép vào & auto redirect sau khi verify
+        localStorage.setItem("verifyEmail", payload.email);
+        localStorage.setItem("verifyContext", "register");
+        localStorage.setItem("verifyIssuedAt", Date.now().toString());
+
         setSnack({
           open: true,
-          message: "Account created successfully!",
+          message: "Account created successfully! Check your email for verification.",
           severity: "success",
         });
-        setTimeout(() => navigate("/login"), 1500);
+
+        // Điều hướng tới trang verify bạn đang dùng trong routes
+        setTimeout(() => navigate("/verify-user"), 800);
       } else {
         setSnack({
           open: true,
@@ -113,18 +128,12 @@ export default function Register() {
             t.palette.mode === "dark" ? "background.default" : "#f7f8fa",
         }}
       >
-        <Card
-          sx={{ width: 440, maxWidth: "100%", boxShadow: 6, borderRadius: 3 }}
-        >
+        <Card sx={{ width: 440, maxWidth: "100%", boxShadow: 6, borderRadius: 3 }}>
           <CardContent sx={{ p: 4 }}>
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
               Create an account
             </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mb: 3 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Sign up to start using Friendify
             </Typography>
 
@@ -180,10 +189,7 @@ export default function Register() {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        edge="end"
-                      >
+                      <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
@@ -208,10 +214,7 @@ export default function Register() {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        edge="end"
-                      >
+                      <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
@@ -247,10 +250,7 @@ export default function Register() {
                 Continue with Google
               </Button>
 
-              <Typography
-                sx={{ mt: 3, textAlign: "center" }}
-                variant="body2"
-              >
+              <Typography sx={{ mt: 3, textAlign: "center" }} variant="body2">
                 Already have an account?{" "}
                 <MuiLink component={Link} to="/login" underline="hover">
                   Sign in

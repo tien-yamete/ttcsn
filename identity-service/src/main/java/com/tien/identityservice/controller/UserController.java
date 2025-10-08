@@ -2,13 +2,12 @@ package com.tien.identityservice.controller;
 
 import java.util.List;
 
+import com.tien.identityservice.dto.request.*;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.*;
 
 import com.tien.identityservice.dto.ApiResponse;
-import com.tien.identityservice.dto.request.UserCreationRequest;
-import com.tien.identityservice.dto.request.UserUpdateRequest;
 import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.service.UserService;
 
@@ -33,15 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 public class UserController {
 
     UserService userService;
-
-    @PostMapping("/registration")
-    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
-        log.info("Controller: Create user");
-
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.createUser(request))
-                .build();
-    }
 
     @GetMapping
     ApiResponse<List<UserResponse>> getUsers() {

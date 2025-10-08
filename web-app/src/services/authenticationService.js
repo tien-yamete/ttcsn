@@ -47,3 +47,20 @@ export const resetPassword = async (token, newPassword) => {
 
   return response;
 }
+
+export const resendVerification = async (email) => {
+  const response = await httpClient.post(API.RESEND_OTP, {
+    email: email,
+  });
+
+  return response;
+}
+
+export const verifyUser = async ({ email, otpCode }) => {
+  const response = await httpClient.post(API.VERIFY_USER, {
+    email: email,
+    otpCode: otpCode,
+  });
+
+  return response;
+}

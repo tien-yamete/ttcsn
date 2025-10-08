@@ -2,17 +2,14 @@ package com.tien.identityservice.controller;
 
 import java.text.ParseException;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.tien.identityservice.dto.request.*;
+import com.tien.identityservice.dto.response.UserResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import com.nimbusds.jose.JOSEException;
 import com.tien.identityservice.dto.ApiResponse;
-import com.tien.identityservice.dto.request.AuthenticationRequest;
-import com.tien.identityservice.dto.request.IntrospectRequest;
-import com.tien.identityservice.dto.request.LogoutRequest;
-import com.tien.identityservice.dto.request.RefreshTokenRequest;
 import com.tien.identityservice.dto.response.AuthenticationResponse;
 import com.tien.identityservice.dto.response.IntrospectResponse;
 import com.tien.identityservice.service.AuthenticationService;
@@ -21,11 +18,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
-// AuthenticationController: trách nhiệm xử lý các API liên quan đến xác thực và quản lý JWT:
-//          - /auth/token: cấp token mới khi user đăng nhập.
-//          - /auth/introspect: kiểm tra tính hợp lệ của token (introspection).
-//          - /auth/refresh: cấp lại access token từ refresh token.
-//          - /auth/logout: huỷ token (đăng xuất).
+import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
 
 @RestController
 @RequestMapping("/auth")
@@ -33,6 +26,33 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationController {
     AuthenticationService authenticationService;
+
+    @PostMapping("/registration")
+    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
+        log.info("Controller: Create user");
+        return ApiResponse.<UserResponse>builder()
+                .message("User registered successfully. Please verify your email.")
+                .result(authenticationService.register(request))
+                .build();
+    }
+
+    @PostMapping("/verify-user")
+    public ApiResponse<Void> verifyUser(@RequestBody VerifyUserRequest request) {
+        log.info("Verifying OTP for email: {}", request.getEmail());
+        authenticationService.verifyUser(request);
+        return ApiResponse.<Void>builder()
+                .message("Email verified successfully. You can now login.")
+                .build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ApiResponse<Void> resendVerificationCode(@RequestBody ResendOtpRequest request) {
+        log.info("Resending OTP for email: {}", request.getEmail());
+        authenticationService.resendVerificationCode(request.getEmail());
+        return ApiResponse.<Void>builder()
+                .message("A new verification code has been sent to your email.")
+                .build();
+    }
 
     @PostMapping("/token")
     ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
