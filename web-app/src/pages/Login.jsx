@@ -46,51 +46,35 @@ export default function Login() {
   };
 
   const onSubmit = async (evt) => {
-  evt.preventDefault();
-  if (!validate()) return;
-  setSubmitting(true);
-  try {
-    const res = await logIn(username.trim(), password);
-    // nếu logIn trả status 200 và token được set trong authenticationService
-    if (res?.status === 200) {
-      // điều hướng tới trang chính
-      navigate("/");
-    } else {
-      setSnack({ open: true, message: "Unable to sign in. Please try again.", severity: "error" });
-    }
-  } catch (err) {
-    // Lấy thông tin lỗi an toàn
-    const status = err?.response?.status;
-    const body = err?.response?.data || {};
-    const msg = body?.message ?? body?.error ?? err?.message ?? "Login failed";
+    evt.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
 
-    // 1) Email chưa xác thực (backend nên trả error key, không dò text)
-    if (status === 403 && (body?.error === "EMAIL_NOT_VERIFIED" || body?.code === "EMAIL_NOT_VERIFIED")) {
-      // redirect tới trang verify, kèm email để prefill
-      navigate("/verify-email", { state: { email: username.trim(), reason: msg } });
-      return;
-    }
+    try {
+      const res = await logIn(username.trim(), password);
 
-    // 2) Rate-limited
-    if (status === 429 || body?.code === "TOO_MANY_REQUESTS") {
-      setSnack({ open: true, message: msg || "Too many attempts. Please wait.", severity: "warning" });
-      // nếu bạn có cơ chế countdown ở trang verify, front-end đó sẽ khởi countdown dựa trên status/code
-      return;
+      if (res?.status === 200) {
+        // ✅ Login thành công → chuyển về trang chủ
+        navigate("/");
+      } else {
+        // Nếu response không thành công
+        setSnack({
+          open: true,
+          message: "Đăng nhập thất bại, vui lòng thử lại.",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Đăng nhập thất bại";
+      setSnack({ open: true, message: msg, severity: "error" });
+    } finally {
+      setSubmitting(false);
     }
-
-    // 3) Validation errors mapped to fields (nếu backend trả { errors: { username: '...', password: '...' } })
-    if (body?.errors && typeof body.errors === "object") {
-      setErrors((prev) => ({ ...prev, ...body.errors }));
-      setSnack({ open: true, message: msg || "Validation error", severity: "error" });
-      return;
-    }
-
-    // Fallback: show message
-    setSnack({ open: true, message: String(msg), severity: "error" });
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
 
   return (

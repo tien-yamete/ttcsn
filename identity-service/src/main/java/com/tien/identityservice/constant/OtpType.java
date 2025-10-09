@@ -4,4 +4,3 @@ public enum OtpType {
     REGISTER,
     RESET_PASSWORD
 }
-

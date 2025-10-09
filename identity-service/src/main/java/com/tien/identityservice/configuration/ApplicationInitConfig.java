@@ -69,6 +69,8 @@ public class ApplicationInitConfig {
             User admin = User.builder()
                     .username(ADMIN_USERNAME)
                     .password(passwordEncoder.encode(ADMIN_PASSWORD))
+                    .emailVerified(true)
+                    .isActive(true)
                     .roles(roles)
                     .build();
             userRepository.save(admin);

@@ -6,23 +6,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import com.tien.event.dto.NotificationEvent;
-import com.tien.identityservice.constant.EmailTemplate;
-import com.tien.identityservice.constant.OtpType;
-import com.tien.identityservice.constant.PredefinedRole;
-import com.tien.identityservice.dto.request.*;
-import com.tien.identityservice.dto.response.UserResponse;
-import com.tien.identityservice.entity.Role;
-import com.tien.identityservice.entity.UserOtp;
-import com.tien.identityservice.mapper.ProfileMapper;
-import com.tien.identityservice.mapper.UserMapper;
-import com.tien.identityservice.repository.RoleRepository;
-import com.tien.identityservice.repository.UserOtpRepository;
-import com.tien.identityservice.repository.httpclient.ProfileClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,14 +19,27 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.tien.event.dto.NotificationEvent;
+import com.tien.identityservice.constant.EmailTemplate;
+import com.tien.identityservice.constant.OtpType;
+import com.tien.identityservice.constant.PredefinedRole;
+import com.tien.identityservice.dto.request.*;
 import com.tien.identityservice.dto.response.AuthenticationResponse;
 import com.tien.identityservice.dto.response.IntrospectResponse;
+import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.entity.InvalidatedToken;
+import com.tien.identityservice.entity.Role;
 import com.tien.identityservice.entity.User;
+import com.tien.identityservice.entity.UserOtp;
 import com.tien.identityservice.exception.AppException;
 import com.tien.identityservice.exception.ErrorCode;
+import com.tien.identityservice.mapper.ProfileMapper;
+import com.tien.identityservice.mapper.UserMapper;
 import com.tien.identityservice.repository.InvalidatedTokenRepository;
+import com.tien.identityservice.repository.RoleRepository;
+import com.tien.identityservice.repository.UserOtpRepository;
 import com.tien.identityservice.repository.UserRepository;
+import com.tien.identityservice.repository.httpclient.ProfileClient;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -139,7 +138,8 @@ public class AuthenticationService {
 
     @Transactional
     public void verifyUser(VerifyUserRequest verifyUserRequest) {
-        User user = userRepository.findByEmail(verifyUserRequest.getEmail())
+        User user = userRepository
+                .findByEmail(verifyUserRequest.getEmail())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         UserOtp userOtp = userOtpRepository
@@ -155,7 +155,6 @@ public class AuthenticationService {
             userOtpRepository.save(userOtp);
             throw new AppException(ErrorCode.OTP_INVALID);
         }
-
 
         user.setEmailVerified(true);
         user.setIsActive(true);
@@ -177,15 +176,15 @@ public class AuthenticationService {
 
     @Transactional
     public void resendVerificationCode(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         if (user.getIsActive() && user.isEmailVerified()) {
             throw new AppException(ErrorCode.USER_ALREADY_VERIFIED);
         }
 
-        Optional<UserOtp> lastOtp = userOtpRepository
-                .findTopByUserAndTypeAndUsedFalseOrderByCreatedAtDesc(user, OtpType.REGISTER);
-        if (lastOtp.isPresent() && lastOtp.get().getCreatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
+        Optional<UserOtp> lastOtp =
+                userOtpRepository.findTopByUserAndTypeAndUsedFalseOrderByCreatedAtDesc(user, OtpType.REGISTER);
+        if (lastOtp.isPresent()
+                && lastOtp.get().getCreatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
             throw new AppException(ErrorCode.OTP_TOO_FREQUENT);
         }
 
@@ -319,7 +318,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getId())
+                .subject(user.getId()) // them userId vao token
                 .issuer(ISSUER)
                 .issueTime(new Date())
                 .expirationTime(new Date(

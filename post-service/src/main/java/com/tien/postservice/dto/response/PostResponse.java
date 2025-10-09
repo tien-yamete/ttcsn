@@ -13,7 +13,9 @@ import java.time.Instant;
 public class PostResponse {
     String id;
     String content;
-    String profileId;
+    String userId;
+    String username;
+    String created;
     Instant createdDate;
     Instant modifiedDate;
 }

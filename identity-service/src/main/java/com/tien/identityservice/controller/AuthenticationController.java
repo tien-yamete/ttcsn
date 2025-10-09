@@ -1,24 +1,24 @@
 package com.tien.identityservice.controller;
 
+import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
+
 import java.text.ParseException;
 
-import com.tien.identityservice.dto.request.*;
-import com.tien.identityservice.dto.response.UserResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
 
 import com.nimbusds.jose.JOSEException;
 import com.tien.identityservice.dto.ApiResponse;
+import com.tien.identityservice.dto.request.*;
 import com.tien.identityservice.dto.response.AuthenticationResponse;
 import com.tien.identityservice.dto.response.IntrospectResponse;
+import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.service.AuthenticationService;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
 
 @RestController
 @RequestMapping("/auth")

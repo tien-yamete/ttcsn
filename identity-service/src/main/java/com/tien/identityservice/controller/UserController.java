@@ -2,12 +2,10 @@ package com.tien.identityservice.controller;
 
 import java.util.List;
 
-import com.tien.identityservice.dto.request.*;
-import jakarta.validation.Valid;
-
 import org.springframework.web.bind.annotation.*;
 
 import com.tien.identityservice.dto.ApiResponse;
+import com.tien.identityservice.dto.request.*;
 import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.service.UserService;
 

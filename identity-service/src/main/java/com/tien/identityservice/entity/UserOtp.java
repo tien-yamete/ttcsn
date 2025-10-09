@@ -1,11 +1,14 @@
 package com.tien.identityservice.entity;
 
-import com.tien.identityservice.constant.OtpType;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
-import lombok.*;
+
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import com.tien.identityservice.constant.OtpType;
+
+import lombok.*;
 
 @Entity
 @Table(name = "user_otp")

@@ -1,1 +1,15 @@
-spring.application.name=post-service
+server:
+  port: 8083
+  servlet:
+    context-path: /post
+spring:
+  application:
+    name: post-service
+  data:
+    mongodb:
+      uri: mongodb://root:814362@localhost:27017/post-service?authSource=admin
+
+app:
+  services:
+    profile:
+      url: http://localhost:8081/profile
