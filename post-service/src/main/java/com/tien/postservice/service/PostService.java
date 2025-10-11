@@ -1,5 +1,6 @@
 package com.tien.postservice.service;
 
+import com.tien.postservice.dto.PageResponse;
 import com.tien.postservice.dto.request.PostRequest;
 import com.tien.postservice.dto.response.PostResponse;
 import com.tien.postservice.dto.response.UserProfileResponse;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -45,13 +47,36 @@ public class PostService {
         return postMapper.toPostResponse(post);
     }
 
-    public List<PostResponse> getMyPosts(){
+    public PageResponse<PostResponse> getMyPosts(int page, int size){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId =  authentication.getName();
 
-        return postRepository.findAllByUserId(userId)
-                .stream()
-                .map(postMapper::toPostResponse)
-                .toList();
+        UserProfileResponse userProfile = null;
+
+        try {
+            userProfile = profileClient.getProfile(userId).getResult();
+        } catch (Exception e) {
+            log.error("Error while getting user profile", e);
+        }
+
+        Pageable pageable = PageRequest.of(page - 1, size,  Sort.by("createdDate").descending());
+
+        var pageData = postRepository.findAllByUserId(userId, pageable);
+
+        String username = userProfile != null ? userProfile.getUsername() : null;
+        var postList = pageData.getContent().stream().map(post -> {
+            var postResponse = postMapper.toPostResponse(post);
+            postResponse.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
+            postResponse.setUsername(username);
+            return postResponse;
+        }).toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
     }
 }

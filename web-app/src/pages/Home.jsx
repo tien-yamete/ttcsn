@@ -34,189 +34,181 @@ export default function Home() {
 
   const navigate = useNavigate();
 
-  // Handle opening the popover
   const handleCreatePostClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
-  // Handle closing the popover
   const handleClosePopover = () => {
     setAnchorEl(null);
     setNewPostContent("");
   };
 
-  // Handle Snackbar close
   const handleSnackbarClose = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
+    if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
 
-  // Handle posting new content
   const handlePostContent = () => {
-    console.log("New post content:", newPostContent);
     handleClosePopover();
 
     createPost(newPostContent)
       .then((response) => {
-        console.log("Post created successfully:", response.data);
-        setPosts((prevPosts) => [response.data.result, ...prevPosts]);
+        setPosts((prev) => [response.data.result, ...prev]);
         setNewPostContent("");
         setSnackbarMessage("Post created successfully!");
         setSnackbarSeverity("success");
         setSnackbarOpen(true);
       })
-      .catch((error) => {
-        console.error("Error creating post:", error);
+      .catch(() => {
         setSnackbarMessage("Failed to create post. Please try again.");
         setSnackbarSeverity("error");
         setSnackbarOpen(true);
       });
   };
 
+  const handleEditPost = (postId, newContent) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId ? { ...post, content: newContent } : post
+      )
+    );
+    setSnackbarMessage("Post updated successfully!");
+    setSnackbarSeverity("success");
+    setSnackbarOpen(true);
+  };
+
+  const handleDeletePost = (postId) => {
+    setPosts((prev) => prev.filter((post) => post.id !== postId));
+    setSnackbarMessage("Post deleted successfully!");
+    setSnackbarSeverity("success");
+    setSnackbarOpen(true);
+  };
+
   const open = Boolean(anchorEl);
   const popoverId = open ? "post-popover" : undefined;
 
-  // useEffect(() => {
-  //   if (!isAuthenticated()) {
-  //     navigate("/login");
-  //   } else {
-  //     loadPosts(page);
-  //   }
-  // }, [navigate, page]);
-
   useEffect(() => {
-    if (isAuthenticated()) {
-      loadPosts(page);
-    }
+    if (isAuthenticated()) loadPosts(page);
   }, [page]);
 
   const loadPosts = (page) => {
-    console.log(`loading posts for page ${page}`);
     setLoading(true);
     getMyPosts(page)
       .then((response) => {
         setTotalPages(response.data.result.totalPages);
-        setPosts((prevPosts) => [...prevPosts, ...response.data.result.data]);
+        setPosts((prev) => [...prev, ...response.data.result.data]);
         setHasMore(response.data.result.data.length > 0);
-        console.log("loaded posts:", response.data.result);
       })
       .catch((error) => {
-        if (error.response.status === 401) {
+        if (error.response?.status === 401) {
           logOut();
           navigate("/login");
         }
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     if (!hasMore) return;
-
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        if (page < totalPages) {
-          setPage((prevPage) => prevPage + 1);
-        }
+      if (entries[0].isIntersecting && page < totalPages) {
+        setPage((prev) => prev + 1);
       }
     });
     if (lastPostElementRef.current) {
       observer.current.observe(lastPostElementRef.current);
     }
-
     setHasMore(false);
   }, [hasMore]);
 
   return (
     <Scene>
-      {" "}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        sx={{ marginTop: "64px" }} // Position below the header
-      >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbarSeverity}
-          sx={{ width: "100%" }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-      <Card
+      <Box
         sx={{
-          minWidth: 500,
-          maxWidth: 600,
-          boxShadow: 3,
-          borderRadius: 2,
-          mt: "20px",
-          padding: "20px",
+          display: "flex",
+          justifyContent: "center",
+          width: "100%",
+          mt: 4,
+          px: 2,
         }}
       >
-        <Box
+        <Card
+          elevation={0}
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
             width: "100%",
-            gap: "10px",
+            maxWidth: 820, // 👈 rộng hơn, đẹp trên màn hình lớn
+            borderRadius: 4,
+            p: 3.5,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+            border: "1px solid #e8e8e8",
+            background: "#fff",
           }}
         >
           <Typography
             sx={{
-              fontSize: 18,
-              mb: "10px",
+              fontSize: 22,
+              fontWeight: 700,
+              mb: 2.5,
+              color: "#1a1a1a",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
             }}
           >
-            Your posts,
+            Your posts
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              width: "100%", // Ensure content takes full width
-            }}
-          ></Box>
+
           {posts.map((post, index) => {
-            if (posts.length === index + 1) {
-              return (
-                <Post ref={lastPostElementRef} key={post.id} post={post} />
-              );
-            } else {
-              return <Post key={post.id} post={post} />;
-            }
+            const isLast = posts.length === index + 1;
+            return (
+              <Post
+                ref={isLast ? lastPostElementRef : null}
+                key={post.id}
+                post={post}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+              />
+            );
           })}
+
           {loading && (
             <Box
-              sx={{ display: "flex", justifyContent: "center", width: "100%" }}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                py: 4,
+              }}
             >
-              <CircularProgress size="24px" />
+              <CircularProgress size="32px" sx={{ color: "#667eea" }} />
             </Box>
           )}
-        </Box>
-      </Card>
-      {/* Floating Action Button for creating new posts */}
+        </Card>
+      </Box>
+
+      {/* Floating Action Button */}
       <Fab
         color="primary"
         aria-label="add"
         onClick={handleCreatePostClick}
         sx={{
           position: "fixed",
-          bottom: 30,
-          right: 30,
+          bottom: 32,
+          right: 32,
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          boxShadow: "0 4px 20px rgba(102, 126, 234, 0.4)",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            background: "linear-gradient(135deg, #5568d3 0%, #63428a 100%)",
+            transform: "scale(1.15) rotate(90deg)",
+            boxShadow: "0 6px 28px rgba(102, 126, 234, 0.5)",
+          },
         }}
       >
         <AddIcon />
       </Fab>
-      {/* Popover for creating new post */}{" "}
+
+      {/* Popover for new post */}
       <Popover
         id={popoverId}
         open={open}
@@ -233,14 +225,25 @@ export default function Home() {
         slotProps={{
           paper: {
             sx: {
-              borderRadius: 5,
-              p: 3,
-              width: 500,
+              borderRadius: 4,
+              p: 3.5,
+              width: 520,
+              maxWidth: "90vw",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              border: "1px solid #e8e8e8",
             },
           },
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{
+            mb: 2.5,
+            fontWeight: 700,
+            fontSize: 19,
+            color: "#1a1a1a",
+          }}
+        >
           Create new Post
         </Typography>
         <TextField
@@ -251,19 +254,93 @@ export default function Home() {
           value={newPostContent}
           onChange={(e) => setNewPostContent(e.target.value)}
           variant="outlined"
-          sx={{ mb: 2 }}
+          sx={{
+            mb: 3,
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 3,
+              fontSize: 14.5,
+              "&:hover fieldset": {
+                borderColor: "#667eea",
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: "#667eea",
+                borderWidth: 2,
+              },
+            },
+          }}
         />
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            onClick={handleClosePopover}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 3,
+              px: 3,
+              py: 1,
+              fontSize: 14,
+              borderColor: "#e0e0e0",
+              color: "#666",
+              "&:hover": {
+                borderColor: "#c0c0c0",
+                backgroundColor: "#f8f8f8",
+              },
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
-            color="primary"
             onClick={handlePostContent}
             disabled={!newPostContent.trim()}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 3,
+              px: 3.5,
+              py: 1,
+              fontSize: 14,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              boxShadow: "0 2px 12px rgba(102, 126, 234, 0.3)",
+              "&:hover": {
+                background: "linear-gradient(135deg, #5568d3 0%, #63428a 100%)",
+                boxShadow: "0 4px 16px rgba(102, 126, 234, 0.4)",
+                transform: "translateY(-1px)",
+              },
+              "&:disabled": {
+                background: "#e0e0e0",
+                color: "#999",
+              },
+            }}
           >
             Post
           </Button>
         </Box>
       </Popover>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ marginTop: "64px" }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{
+            width: "100%",
+            borderRadius: 3,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+            fontWeight: 500,
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Scene>
   );
 }

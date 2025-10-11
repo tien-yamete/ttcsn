@@ -38,14 +38,7 @@ public class ProfileService {
         return profileMapper.toProfileResponse(userProfile);
     }
 
-    public ProfileResponse getProfile(String id) {
-        Profile userProfile =
-                profileRepository.findById(id).orElseThrow(() -> new RuntimeException("Profile not found"));
-
-        return profileMapper.toProfileResponse(userProfile);
-    }
-
-    public ProfileResponse getByUserId(String userId) {
+    public ProfileResponse getProfile(String userId) {
         Profile userProfile =
                 profileRepository.findByUserId(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
@@ -83,7 +76,6 @@ public class ProfileService {
         return profileMapper.toProfileResponse(profileRepository.save(profile));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     public List<ProfileResponse> search(SearchUserRequest request) {
         var userId = SecurityContextHolder.getContext().getAuthentication().getName();
         List<Profile> userProfiles = profileRepository.findByUsernameContainingIgnoreCase(request.getKeyword());
