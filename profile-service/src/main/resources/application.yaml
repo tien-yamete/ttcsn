@@ -13,3 +13,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+app:
+  services:
+    file: http://localhost:8084

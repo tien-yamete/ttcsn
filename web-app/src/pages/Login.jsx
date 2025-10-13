@@ -54,10 +54,8 @@ export default function Login() {
       const res = await logIn(username.trim(), password);
 
       if (res?.status === 200) {
-        // ✅ Login thành công → chuyển về trang chủ
         navigate("/");
       } else {
-        // Nếu response không thành công
         setSnack({
           open: true,
           message: "Đăng nhập thất bại, vui lòng thử lại.",
@@ -140,6 +138,7 @@ export default function Login() {
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
+                        tabIndex={-1}
                         onClick={() => setShowPassword((prev) => !prev)}
                         edge="end"
                       >
@@ -152,14 +151,14 @@ export default function Login() {
 
 
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                <MuiLink component={Link} to="#" underline="hover" sx={{ fontSize: 14 }}>
+                <MuiLink tabIndex={-1} component={Link} to="#" underline="hover" sx={{ fontSize: 14 }}>
                   Forgot password?
                 </MuiLink>
               </Box>
 
               <Button
                 type="submit"
-                variant="contained"
+                variant="contained" 
                 size="large"
                 fullWidth
                 sx={{ mt: 2 }}

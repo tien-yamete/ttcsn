@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -55,6 +56,13 @@ public class ProfileController {
     ApiResponse<List<ProfileResponse>> search(@RequestBody SearchUserRequest request) {
         return ApiResponse.<List<ProfileResponse>>builder()
                 .result(profileService.search(request))
+                .build();
+    }
+
+    @PutMapping("/users/avatar")
+    ApiResponse<ProfileResponse> updateAvatar(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.<ProfileResponse>builder()
+                .result(profileService.updateAvatar(file))
                 .build();
     }
 }

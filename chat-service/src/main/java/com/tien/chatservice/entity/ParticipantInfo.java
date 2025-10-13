@@ -1,22 +1,19 @@
-package com.tien.profileservice.dto.response;
-
-import java.time.LocalDate;
+package com.tien.chatservice.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-@Data
+@Setter
+@Getter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProfileResponse {
-    String id;
+public class ParticipantInfo {
     String userId;
     String username;
     String firstName;
     String lastName;
-    LocalDate dob;
-    String city;
     String avatar;
 }
+

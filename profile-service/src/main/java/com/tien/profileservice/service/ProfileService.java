@@ -2,6 +2,7 @@ package com.tien.profileservice.service;
 
 import java.util.List;
 
+import com.tien.profileservice.repository.httpclient.FileClient;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class ProfileService {
 
     ProfileMapper profileMapper;
 
+    FileClient fileClient;
     public ProfileResponse createProfile(ProfileCreationRequest request) {
         Profile userProfile = profileMapper.toProfile(request);
         userProfile = profileRepository.save(userProfile);
@@ -72,6 +75,21 @@ public class ProfileService {
                 profileRepository.findByUserId(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         profileMapper.update(profile, request);
+
+        return profileMapper.toProfileResponse(profileRepository.save(profile));
+    }
+
+    public ProfileResponse updateAvatar(MultipartFile file) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+
+        var profile =
+                profileRepository.findByUserId(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        //upload file
+        var response = fileClient.uploadFile(file);
+
+        profile.setAvatar(response.getResult().getUrl());
 
         return profileMapper.toProfileResponse(profileRepository.save(profile));
     }

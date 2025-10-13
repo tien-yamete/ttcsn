@@ -29,4 +29,6 @@ public class Profile {
 
     LocalDate dob;
     String city;
+
+    String avatar;
 }

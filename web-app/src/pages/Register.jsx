@@ -189,7 +189,7 @@ export default function Register() {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
+                      <IconButton tabIndex={-1} onClick={() => setShowPassword((prev) => !prev)} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
@@ -214,7 +214,7 @@ export default function Register() {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword((prev) => !prev)} edge="end">
+                      <IconButton tabIndex={-1} onClick={() => setShowPassword((prev) => !prev)} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
