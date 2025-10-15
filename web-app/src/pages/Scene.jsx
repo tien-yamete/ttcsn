@@ -1,4 +1,4 @@
-// src/pages/Scene.jsx
+// src/pages/Scene.jsx  (CHỈNH SỬA)
 import * as React from "react";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -18,7 +18,6 @@ function Scene({ children }) {
   const [isClosing, setIsClosing] = React.useState(false);
   const theme = useTheme();
 
-  // Lấy mode + toggle từ App (để truyền vào Header y như chức năng cũ)
   const { mode, toggle } = React.useContext(ColorModeContext);
 
   const handleDrawerClose = () => {
@@ -31,17 +30,25 @@ function Scene({ children }) {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", bgcolor: "background.default", color: "text.primary", minHeight: "100vh" }}>
-      {/* AppBar như code cũ nhưng theme-aware + full breadth theo layout 2 cột */}
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "background.default",
+        color: "text.primary",
+        height: "100vh", // đảm bảo full viewport
+        overflow: "hidden", // ngăn scroll ngoài
+      }}
+    >
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
-          ml: { sm: `${drawerWidth}px` },                        // chừa chỗ cho permanent drawer trên sm+
-          zIndex: theme.zIndex.drawer + 1,                       // nổi hơn drawer
+          ml: { sm: `${drawerWidth}px` },
+          zIndex: theme.zIndex.drawer + 1,
           bgcolor:
             theme.palette.mode === "dark"
-              ? alpha(theme.palette.grey[900], 0.85)             // xám đậm mờ, không đen hẳn
+              ? alpha(theme.palette.grey[900], 0.85)
               : alpha(theme.palette.background.paper, 0.9),
           backdropFilter: "saturate(180%) blur(10px)",
           borderBottom: "1px solid",
@@ -50,7 +57,6 @@ function Scene({ children }) {
         }}
       >
         <Toolbar sx={{ minHeight: 64 }}>
-          {/* Nút mở slide menu (mobile) */}
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -61,16 +67,12 @@ function Scene({ children }) {
             <MenuIcon />
           </IconButton>
 
-          {/* Header cũ của bạn: giữ nguyên chức năng, chỉ nhận theme từ App */}
           <Header isDarkMode={mode === "dark"} onToggleTheme={toggle} />
         </Toolbar>
       </AppBar>
 
-      {/* Khối chứa sidebar + main như code cũ */}
-      <Box sx={{ display: "flex", flexDirection: "row" }}>
-        {/* NAV: Drawer trái */}
+      <Box sx={{ display: "flex", flexDirection: "row", flex: "1 1 auto", minHeight: 0 }}>
         <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }} aria-label="side menu">
-          {/* Mobile: temporary (slide) */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -91,7 +93,6 @@ function Scene({ children }) {
             <SideMenu />
           </Drawer>
 
-          {/* Desktop: permanent */}
           <Drawer
             variant="permanent"
             sx={{
@@ -114,13 +115,29 @@ function Scene({ children }) {
         <Box
           component="main"
           sx={{
-            flexGrow: 1,
+            flex: "1 1 auto",
+            display: "flex",
+            flexDirection: "column",
             width: { sm: `calc(100% - ${drawerWidth}px)` },
+            minHeight: 0, // critical: allow children with overflow to shrink
           }}
         >
-          {/* Khoảng trống bù cho AppBar (giống code cũ) */}
+          {/* Spacer cho AppBar */}
           <Toolbar />
-          <Box sx={{ display: "flex", justifyContent: "center", width: "100%", height: "100%", px: { xs: 1.5, md: 3 }, py: { xs: 2, md: 3 } }}>
+
+          {/* Wrapper chính chứa page content */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              width: "100%",
+              flex: "1 1 auto",   // fill remaining vertical space
+              minHeight: 0,
+              px: { xs: 1.5, md: 3 },
+              py: { xs: 2, md: 3 },
+              overflow: "hidden", // important: page content should control its own scrolling
+            }}
+          >
             {children}
           </Box>
         </Box>
@@ -130,3 +147,4 @@ function Scene({ children }) {
 }
 
 export default Scene;
+  

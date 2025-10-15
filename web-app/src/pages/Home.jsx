@@ -3,13 +3,15 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Card, CircularProgress, Typography, Fab, Popover, TextField,
-  Button, Snackbar, Alert
+  Button, Snackbar, Alert, IconButton
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 import { isAuthenticated, logOut } from "../services/authenticationService";
 import Scene from "./Scene";
 import Post from "../components/Post";
 import { getMyPosts, createPost } from "../services/postService";
+import MediaUpload from "../components/MediaUpload";
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -25,27 +27,24 @@ export default function Home() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
+  // NEW: store only File[] for upload; preview logic is inside MediaUpload
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const mediaUploadRef = useRef(null);
+
   const navigate = useNavigate();
 
   const handleCreatePostClick = (e) => setAnchorEl(e.currentTarget);
-  const handleClosePopover = () => { setAnchorEl(null); setNewPostContent(""); };
-  const handleSnackbarClose = (_, r) => { if (r !== "clickaway") setSnackbarOpen(false); };
 
-  const handlePostContent = () => {
-    handleClosePopover();
-    createPost(newPostContent)
-      .then((res) => {
-        setPosts((prev) => [res.data.result, ...prev]);
-        setNewPostContent("");
-        setSnackbarMessage("Post created successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
-      })
-      .catch(() => {
-        setSnackbarMessage("Failed to create post. Please try again.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
-      });
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+    setNewPostContent("");
+    // clear files inside MediaUpload (it will also notify parent via onFilesChange)
+    if (mediaUploadRef.current?.clear) mediaUploadRef.current.clear();
+    setMediaFiles([]);
+  };
+
+  const handleSnackbarClose = (_, r) => {
+    if (r !== "clickaway") setSnackbarOpen(false);
   };
 
   const handleEditPost = (id, content) => {
@@ -54,6 +53,7 @@ export default function Home() {
     setSnackbarSeverity("success");
     setSnackbarOpen(true);
   };
+
   const handleDeletePost = (id) => {
     setPosts((prev) => prev.filter((p) => p.id !== id));
     setSnackbarMessage("Post deleted successfully!");
@@ -64,7 +64,11 @@ export default function Home() {
   const open = Boolean(anchorEl);
   const popoverId = open ? "post-popover" : undefined;
 
-  useEffect(() => { if (isAuthenticated()) loadPosts(page); }, [page]);
+  useEffect(() => {
+    if (isAuthenticated()) loadPosts(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
   const loadPosts = (page) => {
     setLoading(true);
     getMyPosts(page)
@@ -74,7 +78,10 @@ export default function Home() {
         setHasMore(res.data.result.data.length > 0);
       })
       .catch((error) => {
-        if (error.response?.status === 401) { logOut(); navigate("/login"); }
+        if (error.response?.status === 401) {
+          logOut();
+          navigate("/login");
+        }
       })
       .finally(() => setLoading(false));
   };
@@ -88,6 +95,42 @@ export default function Home() {
     if (lastPostElementRef.current) observer.current.observe(lastPostElementRef.current);
     setHasMore(false);
   }, [hasMore, page, totalPages]);
+
+  // NEW: callback from MediaUpload
+  const handleMediaFilesChange = (files) => {
+    setMediaFiles(files || []);
+  };
+
+  const handlePostContent = () => {
+    const formData = new FormData();
+    formData.append('content', newPostContent);
+
+    // Get files from MediaUpload via ref (primary) or from state (fallback)
+    const filesFromRef = mediaUploadRef.current?.getFiles?.() ?? mediaFiles;
+    (filesFromRef || []).forEach((file) => {
+      formData.append('media', file);
+    });
+
+    // Close popover (UI) while request in flight
+    setAnchorEl(null);
+
+    createPost(formData)
+      .then((res) => {
+        setPosts((prev) => [res.data.result, ...prev]);
+        setNewPostContent("");
+        setSnackbarMessage("Post created successfully!");
+        setSnackbarSeverity("success");
+        setSnackbarOpen(true);
+        // clear media upload UI + parent state
+        if (mediaUploadRef.current?.clear) mediaUploadRef.current.clear();
+        setMediaFiles([]);
+      })
+      .catch(() => {
+        setSnackbarMessage("Failed to create post. Please try again.");
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
+      });
+  };
 
   return (
     <Scene>
@@ -154,6 +197,7 @@ export default function Home() {
             background: "linear-gradient(135deg, #5568d3 0%, #63428a 100%)",
             transform: "scale(1.12) rotate(90deg)",
           },
+          transition: "all 0.3s ease",
         }}
       >
         <AddIcon />
@@ -172,8 +216,10 @@ export default function Home() {
             sx: (t) => ({
               borderRadius: 4,
               p: 3.5,
-              width: 520,
+              width: 620,
               maxWidth: "90vw",
+              maxHeight: "85vh",
+              overflow: "auto",
               boxShadow: t.shadows[6],
               border: "1px solid",
               borderColor: "divider",
@@ -187,13 +233,15 @@ export default function Home() {
         </Typography>
 
         <TextField
-          fullWidth multiline rows={4}
+          fullWidth
+          multiline
+          rows={4}
           placeholder="What's on your mind?"
           value={newPostContent}
           onChange={(e) => setNewPostContent(e.target.value)}
           variant="outlined"
           sx={{
-            mb: 3,
+            mb: 2,
             "& .MuiOutlinedInput-root": {
               borderRadius: 3,
               fontSize: 14.5,
@@ -205,13 +253,28 @@ export default function Home() {
           }}
         />
 
+        {/* NEW: Use MediaUpload component (it manages previews & files) */}
+        <MediaUpload
+          ref={mediaUploadRef}
+          onFilesChange={handleMediaFilesChange}
+          maxFiles={8}
+          maxFileSize={25 * 1024 * 1024}
+          addButtonLabel="Add Photos or Videos"
+        />
+
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
           <Button
             variant="outlined"
             onClick={handleClosePopover}
             sx={{
-              textTransform: "none", fontWeight: 600, borderRadius: 3, px: 3, py: 1, fontSize: 14,
-              borderColor: "divider", color: "text.secondary",
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 3,
+              px: 3,
+              py: 1,
+              fontSize: 14,
+              borderColor: "divider",
+              color: "text.secondary",
               "&:hover": { borderColor: "divider", backgroundColor: "action.hover" },
             }}
           >
@@ -220,9 +283,14 @@ export default function Home() {
           <Button
             variant="contained"
             onClick={handlePostContent}
-            disabled={!newPostContent.trim()}
+            disabled={!newPostContent.trim() && mediaFiles.length === 0}
             sx={{
-              textTransform: "none", fontWeight: 600, borderRadius: 3, px: 3.5, py: 1, fontSize: 14,
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 3,
+              px: 3.5,
+              py: 1,
+              fontSize: 14,
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               "&:hover": { background: "linear-gradient(135deg, #5568d3 0%, #63428a 100%)" },
               "&:disabled": { background: "action.disabledBackground", color: "text.disabled" },
@@ -253,4 +321,3 @@ export default function Home() {
     </Scene>
   );
 }
-  
