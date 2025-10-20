@@ -10,6 +10,8 @@ import ChatPage from "../pages/ChatPage";
 import FriendsPage from "../pages/FriendsPage";
 import Settings from "../pages/Settings";
 import SearchPage from "../pages/SearchPage";
+import GroupPage from "../pages/GroupPage";
+import GroupDetail from "../pages/GroupDetail";
 
 const AppRoutes = () => {
   return (
@@ -26,6 +28,8 @@ const AppRoutes = () => {
         <Route path="/friends" element={<FriendsPage />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/groups" element={<GroupPage />} />
+        <Route path="/group-detail" element={<GroupDetail />} />
       </Routes>
     </Router>
   );

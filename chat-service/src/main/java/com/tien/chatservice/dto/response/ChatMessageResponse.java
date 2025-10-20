@@ -1,25 +1,21 @@
 package com.tien.chatservice.dto.response;
 
-import com.tien.chatservice.constant.TypeConversation;
 import com.tien.chatservice.entity.ParticipantInfo;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.Instant;
-import java.util.List;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ConversationResponse {
+public class ChatMessageResponse {
     String id;
-    TypeConversation typeConversation;
-    String participantsHash;
-    String conversationAvatar;
-    String conversationName;
-    List<ParticipantInfo> participants;
+    String conversationId;
+    boolean me;
+    String message;
+    ParticipantInfo sender;
     Instant createdDate;
-    Instant modifiedDate;
 }

@@ -1,33 +1,31 @@
 package com.tien.chatservice.entity;
 
-import com.tien.chatservice.constant.TypeConversation;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
-import org.springframework.data.mongodb.core.index.Indexed;
+
 import java.time.Instant;
-import java.util.List;
 
 @Setter
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "conversation")
+@Document(collection = "chat_message")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Conversation {
+public class ChatMessage {
     @MongoId
     String id;
 
-    TypeConversation typeConversation;
+    @Indexed
+    String conversationId;
 
-    @Indexed(unique = true)
-    String participantsHash;
+    String message;
 
-    List<ParticipantInfo> participants;
+    ParticipantInfo sender;
 
+    @Indexed
     Instant createdDate;
-
-    Instant modifiedDate;
 }

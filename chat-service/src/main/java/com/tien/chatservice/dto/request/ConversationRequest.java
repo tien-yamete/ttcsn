@@ -1,5 +1,6 @@
 package com.tien.chatservice.dto.request;
 
+import com.tien.chatservice.constant.TypeConversation;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -13,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ConversationRequest {
-    String type;
+    TypeConversation typeConversation;
 
     @Size(min = 1)
     @NotNull

@@ -40,7 +40,55 @@ public class ConversationService {
     }
 
     public ConversationResponse create(ConversationRequest request) {
-        return null;
+        // fetch profile info
+        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+        var userInfoResponse = profileClient.getProfile(currentUserId);
+
+        var participantInfoResponses = profileClient.getProfile(request.getParticipantIds().get(0));
+
+        if(Objects.isNull(userInfoResponse)|| Objects.isNull(participantInfoResponses)) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        var userInfo = userInfoResponse.getResult();
+
+        var participantInfo = participantInfoResponses.getResult();
+
+        List<String> userIds = new ArrayList<>();
+        userIds.add(currentUserId);
+        userIds.add(participantInfo.getUserId());
+
+        var sortedIds =  userIds.stream().sorted().toList();
+        String userIdHash = generateParticipantHash(sortedIds);
+
+        var conversation = conversationRepository.findByParticipantsHash(userIdHash)
+                .orElseGet(() -> {
+                    List<ParticipantInfo> participantInfos = List.of(
+                            ParticipantInfo.builder()
+                                    .userId(userInfo.getUserId())
+                                    .username(userInfo.getUsername())
+                                    .firstName(userInfo.getFirstName())
+                                    .lastName(userInfo.getLastName())
+                                    .avatar(userInfo.getAvatar())
+                                    .build(),
+                            ParticipantInfo.builder()
+                                    .userId(participantInfo.getUserId())
+                                    .username(participantInfo.getUsername())
+                                    .firstName(participantInfo.getFirstName())
+                                    .lastName(participantInfo.getLastName())
+                                    .avatar(participantInfo.getAvatar())
+                                    .build()
+                    );
+                    // Build conversation
+                    Conversation newConversation = Conversation.builder()
+                            .typeConversation(request.getTypeConversation())
+                            .participants(participantInfos)
+                            .participantsHash(userIdHash)
+                            .createdDate(Instant.now())
+                            .modifiedDate(Instant.now())
+                            .build();
+                    return conversationRepository.save(newConversation);
+                });
+        return toConversationResponse(conversation);
     }
 
     private String generateParticipantHash(List<String> ids) {
