@@ -3,7 +3,8 @@ import * as React from "react";
 import { styled, alpha } from "@mui/material/styles";
 import {
   AppBar, Toolbar, Box, Avatar, IconButton, InputBase, Badge,
-  MenuItem, Menu, Divider, Button, Switch, Typography
+  MenuItem, Menu, Divider, Button, Switch, Typography, Paper, List,
+  ListItem, ListItemAvatar, ListItemText, Popper, ClickAwayListener
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import MailIcon from "@mui/icons-material/Mail";
@@ -13,7 +14,17 @@ import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import WbSunnyOutlined from "@mui/icons-material/WbSunnyOutlined";
 import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import HistoryIcon from "@mui/icons-material/History";
 import { isAuthenticated, logOut } from "../services/authenticationService";
+
+const SEARCH_SUGGESTIONS = [
+  { id: 1, type: "user", name: "Sarah Johnson", avatar: "https://i.pravatar.cc/150?img=1" },
+  { id: 2, type: "user", name: "Mike Chen", avatar: "https://i.pravatar.cc/150?img=2" },
+  { id: 3, type: "trending", name: "#ReactJS", subtitle: "2.5k posts" },
+  { id: 4, type: "trending", name: "#WebDev", subtitle: "1.8k posts" },
+  { id: 5, type: "recent", name: "JavaScript Tutorial", subtitle: "Recent search" },
+];
 
 const SearchRoot = styled("div")(({ theme }) => {
   const isDark = theme.palette.mode === "dark";
@@ -65,8 +76,12 @@ export default function Header({
 }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = React.useState(null);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchAnchor, setSearchAnchor] = React.useState(null);
+  const searchRef = React.useRef(null);
   const isMenuOpen = Boolean(anchorEl);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
+  const isSearchOpen = Boolean(searchAnchor) && searchQuery.trim().length > 0;
 
   const handleProfileMenuOpen = (e) => setAnchorEl(e.currentTarget);
   const handleMobileMenuOpen = (e) => setMobileMoreAnchorEl(e.currentTarget);
@@ -75,6 +90,17 @@ export default function Header({
 
   const handleOpenProfile = () => { handleMenuClose(); window.location.href = "/profile"; };
   const handleLogout = () => { handleMenuClose(); logOut(); window.location.href = "/login"; };
+
+  const handleSearchFocus = (e) => setSearchAnchor(e.currentTarget);
+  const handleSearchChange = (e) => setSearchQuery(e.target.value);
+  const handleSearchClose = () => {
+    setSearchAnchor(null);
+    setSearchQuery("");
+  };
+
+  const filteredSuggestions = SEARCH_SUGGESTIONS.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const menuId = "primary-profile-menu";
   const mobileMenuId = "primary-profile-menu-mobile";
@@ -244,10 +270,84 @@ export default function Header({
         </IconButton>
 
         {/* Search */}
-        <SearchRoot>
+        <SearchRoot ref={searchRef}>
           <SearchIconWrapper><SearchIcon /></SearchIconWrapper>
-          <StyledInputBase placeholder="Tìm kiếm ..." inputProps={{ "aria-label": "search" }} />
+          <StyledInputBase
+            placeholder="Search..."
+            inputProps={{ "aria-label": "search" }}
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onFocus={handleSearchFocus}
+          />
         </SearchRoot>
+
+        {/* Search Suggestions Popper */}
+        <Popper
+          open={isSearchOpen}
+          anchorEl={searchAnchor}
+          placement="bottom-start"
+          sx={{ zIndex: (t) => t.zIndex.modal + 1, width: searchRef.current?.offsetWidth || 350 }}
+        >
+          <ClickAwayListener onClickAway={handleSearchClose}>
+            <Paper
+              elevation={8}
+              sx={(t) => ({
+                mt: 1,
+                borderRadius: 3,
+                border: "1px solid",
+                borderColor: "divider",
+                overflow: "hidden",
+                maxHeight: 400,
+                overflowY: "auto",
+              })}
+            >
+              <List sx={{ py: 1 }}>
+                {filteredSuggestions.length > 0 ? (
+                  filteredSuggestions.map((item) => (
+                    <ListItem
+                      key={item.id}
+                      button
+                      onClick={handleSearchClose}
+                      sx={{
+                        py: 1.5,
+                        "&:hover": { bgcolor: "action.hover" },
+                      }}
+                    >
+                      <ListItemAvatar>
+                        {item.type === "user" ? (
+                          <Avatar src={item.avatar} sx={{ width: 40, height: 40 }} />
+                        ) : item.type === "trending" ? (
+                          <Avatar sx={{ width: 40, height: 40, bgcolor: "primary.main" }}>
+                            <TrendingUpIcon fontSize="small" />
+                          </Avatar>
+                        ) : (
+                          <Avatar sx={{ width: 40, height: 40, bgcolor: "action.selected" }}>
+                            <HistoryIcon fontSize="small" />
+                          </Avatar>
+                        )}
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={item.name}
+                        secondary={item.subtitle}
+                        primaryTypographyProps={{ fontWeight: 600, fontSize: 14 }}
+                        secondaryTypographyProps={{ fontSize: 12 }}
+                      />
+                    </ListItem>
+                  ))
+                ) : (
+                  <ListItem>
+                    <ListItemText
+                      primary="No results found"
+                      secondary={`Try searching for "${searchQuery}"`}
+                      primaryTypographyProps={{ fontSize: 14, color: "text.secondary" }}
+                      secondaryTypographyProps={{ fontSize: 12 }}
+                    />
+                  </ListItem>
+                )}
+              </List>
+            </Paper>
+          </ClickAwayListener>
+        </Popper>
 
         <Box sx={{ flexGrow: 1 }} />
 

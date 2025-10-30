@@ -12,6 +12,8 @@ import Scene from "./Scene";
 import Post from "../components/Post";
 import { getMyPosts, createPost } from "../services/postService";
 import MediaUpload from "../components/MediaUpload";
+import CreatePostComposer from "../components/CreatePostComposer";
+import RightSidebar from "../components/RightSidebar";
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -134,32 +136,24 @@ export default function Home() {
 
   return (
     <Scene>
-      <Box sx={{ display: "flex", justifyContent: "center", width: "100%", mt: 4, px: 2 }}>
-        <Card
-          elevation={0}
-          sx={(t) => ({
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          width: "100%",
+          gap: 3,
+          px: { xs: 0, md: 2 },
+        }}
+      >
+        {/* Main Feed */}
+        <Box
+          sx={{
             width: "100%",
-            maxWidth: 820,
-            borderRadius: 4,
-            p: 3.5,
-            boxShadow: t.shadows[1],
-            border: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-          })}
+            maxWidth: 680,
+            flex: "1 1 auto",
+          }}
         >
-          <Typography
-            sx={{
-              fontSize: 22,
-              fontWeight: 700,
-              mb: 2.5,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Your posts
-          </Typography>
+          <CreatePostComposer onClick={handleCreatePostClick} />
 
           {posts.map((post, index) => {
             const isLast = posts.length === index + 1;
@@ -179,7 +173,10 @@ export default function Home() {
               <CircularProgress size="32px" color="primary" />
             </Box>
           )}
-        </Card>
+        </Box>
+
+        {/* Right Sidebar */}
+        <RightSidebar />
       </Box>
 
       {/* Floating Action Button */}

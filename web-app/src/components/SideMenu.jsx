@@ -11,33 +11,43 @@ import HomeIcon from "@mui/icons-material/Home";
 import PeopleIcon from "@mui/icons-material/People";
 import GroupsIcon from "@mui/icons-material/Groups";
 import ChatIcon from "@mui/icons-material/Chat";
+import FlagIcon from "@mui/icons-material/Flag";
+import StorefrontIcon from "@mui/icons-material/Storefront";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
 import { Link, useLocation } from "react-router-dom";
 
 function SideMenu() {
-  // không khởi tạo cố định "home" — sẽ set dựa trên pathname
   const location = useLocation();
   const [activeItem, setActiveItem] = React.useState(() => {
     const p = location.pathname || "/";
     if (p.startsWith("/friends")) return "friends";
     if (p.startsWith("/groups")) return "groups";
     if (p.startsWith("/chat")) return "chat";
+    if (p.startsWith("/pages")) return "pages";
+    if (p.startsWith("/marketplace")) return "marketplace";
+    if (p.startsWith("/saved")) return "saved";
     return "home";
   });
 
-  // khi route thay đổi, cập nhật activeItem
   React.useEffect(() => {
     const p = location.pathname || "/";
     if (p.startsWith("/friends")) setActiveItem("friends");
     else if (p.startsWith("/groups")) setActiveItem("groups");
     else if (p.startsWith("/chat")) setActiveItem("chat");
+    else if (p.startsWith("/pages")) setActiveItem("pages");
+    else if (p.startsWith("/marketplace")) setActiveItem("marketplace");
+    else if (p.startsWith("/saved")) setActiveItem("saved");
     else setActiveItem("home");
   }, [location.pathname]);
 
   const menuItems = [
-    { key: "home", icon: <HomeIcon />, text: "Home", to: "/" },
+    { key: "home", icon: <HomeIcon />, text: "News Feed", to: "/" },
+    { key: "chat", icon: <ChatIcon />, text: "Messages", to: "/chat" },
     { key: "friends", icon: <PeopleIcon />, text: "Friends", to: "/friends" },
     { key: "groups", icon: <GroupsIcon />, text: "Groups", to: "/groups" },
-    { key: "chat", icon: <ChatIcon />, text: "Chat", to: "/chat" },
+    { key: "pages", icon: <FlagIcon />, text: "Pages", to: "/pages" },
+    { key: "marketplace", icon: <StorefrontIcon />, text: "Marketplace", to: "/marketplace" },
+    { key: "saved", icon: <BookmarkIcon />, text: "Saved", to: "/saved" },
   ];
 
   return (
