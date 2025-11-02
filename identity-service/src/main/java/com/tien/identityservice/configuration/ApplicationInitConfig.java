@@ -1,8 +1,10 @@
 package com.tien.identityservice.configuration;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.tien.identityservice.constant.PredefinedRole;
+import com.tien.identityservice.constant.SignInProvider;
 import com.tien.identityservice.entity.Role;
 import com.tien.identityservice.entity.User;
 import com.tien.identityservice.repository.RoleRepository;
@@ -20,18 +23,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// Seed dữ liệu khởi tạo khi ứng dụng chạy lần đầu: tạo các Role mặc định và User admin.
-
 @Configuration
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Slf4j
 public class ApplicationInitConfig {
 
-    PasswordEncoder passwordEncoder;
+    final PasswordEncoder passwordEncoder;
 
-    static final String ADMIN_USERNAME = "admin";
-    static final String ADMIN_PASSWORD = "admin";
+    @Value("${app.seed.admin.username}")
+    protected String adminUsername;
+
+    @Value("${app.seed.admin.password}")
+    protected String adminPassword;
+
+    @Value("${app.seed.admin.email}")
+    protected String adminEmail;
 
     @Bean
     @ConditionalOnProperty(
@@ -42,44 +49,49 @@ public class ApplicationInitConfig {
         return args -> {
             log.info("[INIT] Starting default data initialization...");
 
-            // Bỏ qua nếu tài khoản admin đã tồn tại
-            boolean adminExisted = userRepository.findByUsername(ADMIN_USERNAME).isPresent();
+            // 1) Ensure roles
+            Role userRole = roleRepository.findByName(PredefinedRole.USER_ROLE)
+                    .orElseGet(() -> roleRepository.save(Role.builder()
+                            .name(PredefinedRole.USER_ROLE)
+                            .description("User role")
+                            .build()));
+
+            Role adminRole = roleRepository.findByName(PredefinedRole.ADMIN_ROLE)
+                    .orElseGet(() -> roleRepository.save(Role.builder()
+                            .name(PredefinedRole.ADMIN_ROLE)
+                            .description("Admin role")
+                            .build()));
+
+            // 2) Ensure admin user
+            boolean adminExisted = userRepository.findByUsername(adminUsername).isPresent()
+                    || userRepository.findByEmail(adminEmail).isPresent();
             if (adminExisted) {
-                log.info("[INIT] User '{}' already exists. Skipping default seeding.", ADMIN_USERNAME);
+                log.info("[INIT] Admin '{}' or email '{}' already exists. Skipping seed.", adminUsername, adminEmail);
                 return;
             }
 
-            // Tạo ROLE_USER
-            Role userRole = roleRepository.save(Role.builder()
-                    .name(PredefinedRole.USER_ROLE)
-                    .description("User role")
-                    .build());
-
-            // Tạo ROLE_ADMIN
-            Role adminRole = roleRepository.save(Role.builder()
-                    .name(PredefinedRole.ADMIN_ROLE)
-                    .description("Admin role")
-                    .build());
-
-            // Gán quyền cho tài khoản admin
             Set<Role> roles = new HashSet<>();
             roles.add(adminRole);
-            // roles.add(userRole); // mở dòng này nếu muốn tài khoản admin có cả quyền USER
+            // roles.add(userRole); // mở nếu muốn admin có cả USER
+
+            LocalDateTime now = LocalDateTime.now();
 
             User admin = User.builder()
-                    .username(ADMIN_USERNAME)
-                    .password(passwordEncoder.encode(ADMIN_PASSWORD))
+                    .username(adminUsername)
+                    .password(passwordEncoder.encode(adminPassword))
+                    .email(adminEmail)
                     .emailVerified(true)
                     .isActive(true)
+                    .provider(SignInProvider.LOCAL)
                     .roles(roles)
+                    .createdAt(now)
+                    .updatedAt(now)
                     .build();
+
             userRepository.save(admin);
 
-            // Tạo tài khoản admin với mật khẩu đã được mã hoá
-            log.warn(
-                    "[INIT] Admin user '{}' created with default password '{}'. Please change it immediately.",
-                    ADMIN_USERNAME,
-                    ADMIN_PASSWORD);
+            log.warn("[INIT] Admin '{}' created with default password '{}'. Please change it ASAP.",
+                    adminUsername, adminPassword);
             log.info("[INIT] Default data initialization completed.");
         };
     }

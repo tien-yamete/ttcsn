@@ -9,6 +9,8 @@ import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;
 
+// TODO: dùng để tự động lấy header "Authorization" từ request hiện tại
+
 @Slf4j
 @Component
 public class AuthenticationRequestInterceptor implements RequestInterceptor {

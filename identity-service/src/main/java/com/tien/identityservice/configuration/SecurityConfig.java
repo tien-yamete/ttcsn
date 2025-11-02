@@ -38,12 +38,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         // Cấu hình phân quyền cho các request
-        httpSecurity.authorizeHttpRequests(requests -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENPOINTS)
+        httpSecurity.authorizeHttpRequests(requests
+                -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENPOINTS)
                 .permitAll()
                 // .requestMatchers(HttpMethod.GET, "/users").hasRole(Role.ADMIN.name()).hasAuthority("ROLE_ADMIN")
                 .anyRequest()
-                .authenticated()); // Các request khác phải xác thực
-
+                .authenticated());
         // Cấu hình Resource Server với JWT
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)

@@ -11,19 +11,42 @@ spring:
     driver-class-name: "com.mysql.cj.jdbc.Driver"
   jpa:
     hibernate:
-      ddl-auto: update   # T? t?o/t? update b?ng DB theo entity
-    show-sql: true       # Log SQL ra console
+      ddl-auto: update
+    show-sql: true
   kafka:
     bootstrap-servers: localhost:9094
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: profile, email
+            redirect-uri: "${GOOGLE_REDIRECT_URI}/{registrationId}"
+            client-name: Google
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
 jwt:
-  signerKey: "dDQUxe/9TmZRTqCPATFEHWkNLKmAMsgl0rdQGa2AIjW1J7dj2dAEsNyZVhfjT5rS" # Kh�a k� JWT
+  signerKey: ${JWT_SIGNER_KEY}
   issuer: "tavantien.com"     # Issuer c?a JWT
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in seconds
 app:
   services:
     profile: http://localhost:8081/profile
+  oauth2:
+    # Frontend sẽ nhận token qua deep-link sau khi login thành công
+    authorizedRedirectUri: "http://localhost:5173/oauth2/redirect"
+  seed:
+    admin:
+      username: "admin"
+      password: "admin"
+      email: "friendifyadmin@yopmail.com"

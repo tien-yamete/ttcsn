@@ -9,9 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.nimbusds.jwt.SignedJWT;
 
-// CustomJwtDecoder chịu trách nhiệm:
-//         - Gọi AuthenticationService để introspect token (xác thực token với server).
-//         - Nếu token hợp lệ, sử dụng NimbusJwtDecoder để parse và decode ra Jwt object.
+// TODO: Giải mã JWT token thủ công (parse claims, header, thời gian hiệu lực)
 
 @Component
 public class CustomJwtDecoder implements JwtDecoder {
