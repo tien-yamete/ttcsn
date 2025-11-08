@@ -1,0 +1,68 @@
+# Maven
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs - IntelliJ, STS, VS Code, NetBeans
+.idea/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+services/.idea
+*.iml
+*.iws
+*.ipr
+
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+.vscode/
+
+# Build folders (Gradle/NetBeans)
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Environment & secrets
+*.env
+.env.*
+application-*.yml
+application-*.yaml
+application-*.properties
+
+# Java artifacts
+*.class
+*.jar
+*.war
+*.ear
+
+# Backup and temp files
+*.swp
+*.swo
+*.tmp
+
+# Misc
+.vite
+HELP.md
