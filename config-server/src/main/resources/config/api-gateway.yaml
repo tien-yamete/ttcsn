@@ -1,0 +1,83 @@
+server:
+  port: 8080
+
+app:
+  api-prefix: /api/v1
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      # Các cấu hình chung còn lại của gateway để nguyên ở đây nếu không bị cảnh báo
+      default-filters:
+        - RemoveRequestHeader=Cookie
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_UNIQUE
+
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 5000
+            response-timeout: 10s
+
+          globalcors:
+            cors-configurations:
+              "[/**]":
+                allowed-origins: "*"
+                allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+                allowed-headers: "*"
+                allow-credentials: false
+
+          routes:
+            # ========== IDENTITY ==========
+            - id: identity_service
+              uri: http://localhost:8081
+              predicates:
+                - Path=${app.api-prefix}/identity/**
+              filters:
+                - StripPrefix=2
+            # ========== PROFILE ==========
+            - id: profile_service
+              uri: http://localhost:8082
+              predicates:
+                - Path=${app.api-prefix}/profile/users/**
+              filters:
+                - StripPrefix=2
+            # ========== NOTIFICATION ==========
+            - id: notification_service
+              uri: http://localhost:8083
+              predicates:
+                - Path=${app.api-prefix}/notification/**
+              filters:
+                - StripPrefix=2
+            # ========== POST ==========
+            - id: post_service
+              uri: http://localhost:8084
+              predicates:
+                - Path=${app.api-prefix}/post/**
+              filters:
+                - StripPrefix=2
+            # ========== FILE ==========
+            - id: file_service
+              uri: http://localhost:8085
+              predicates:
+                - Path=${app.api-prefix}/file/**
+              filters:
+                - StripPrefix=2
+            # ========== CHAT ==========
+            - id: chat_service
+              uri: http://localhost:8086
+              predicates:
+                - Path=${app.api-prefix}/chat/**
+              filters:
+                - StripPrefix=2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,loggers,gateway
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
