@@ -14,6 +14,8 @@
         <option value="$PROJECT_DIR$/file-service/pom.xml" />
         <option value="$PROJECT_DIR$/chat-service/pom.xml" />
         <option value="$PROJECT_DIR$/config-server/pom.xml" />
+        <option value="$PROJECT_DIR$/shared-common/pom.xml" />
+        <option value="$PROJECT_DIR$/shared-contacts/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

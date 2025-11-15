@@ -1,17 +1,19 @@
 package com.tien.fileservice.exception;
 
+import java.util.Map;
+import java.util.Objects;
 
-import com.tien.fileservice.dto.ApiResponse;
 import jakarta.validation.ConstraintViolation;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import java.util.Map;
-import java.util.Objects;
+import com.tien.fileservice.dto.ApiResponse;
+
+import lombok.extern.slf4j.Slf4j;
 
 // GlobalExceptionHandler: Chịu trách nhiệm xử lý tập trung tất cả exception trong hệ thống.
 
@@ -20,9 +22,6 @@ import java.util.Objects;
 public class GlobalExceptionHandler {
 
     private static final String MIN_ATTRIBUTE = "min";
-    //      Handler mặc định cho Exception chưa được bắt riêng.
-    //            - Log stack trace.
-    //            - Trả về mã lỗi UNCLASSIFIED_EXCEPTION.
 
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse> handlingRuntimeException(RuntimeException exception) {
@@ -35,9 +34,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(apiResponse);
     }
 
-    //    Handler cho AppException (custom business exception).
-    //             - Lấy ErrorCode từ exception.
-    //             - Trả về status và message theo errorCode.
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
@@ -49,8 +45,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
-    //    Handler cho AccessDeniedException (Spring Security ném ra khi không có quyền).
-    //             - Trả về 401 Unauthorized.
     @ExceptionHandler(value = AccessDeniedException.class)
     ResponseEntity<ApiResponse> handlingAccessDeniedException(AccessDeniedException exception) {
         ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
@@ -62,10 +56,6 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-    //    Handler cho lỗi validation (MethodArgumentNotValidException).
-    //             - Lấy error message từ @Valid annotation.
-    //      - Nếu message trùng với tên ErrorCode enum -> map ra ErrorCode tương ứng.
-    //      - Nếu có attributes (ví dụ min=18), thì thay thế vào message template.
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException e) {
         // Lấy message mặc định

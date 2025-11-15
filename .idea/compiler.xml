@@ -8,7 +8,9 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="api-gateway" />
+        <module name="shared-contacts" />
         <module name="config-server" />
+        <module name="shared-common" />
       </profile>
       <profile name="Annotation profile for notification-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -55,6 +57,8 @@
       <module name="notification-service" options="-parameters -Amapstruct.suppressGeneratorTimestamp=true -Amapstruct.defaultComponentModel=spring -Amapstruct.verbose=true" />
       <module name="post-service" options="-parameters" />
       <module name="profile-service" options="-parameters" />
+      <module name="shared-common" options="-parameters" />
+      <module name="shared-contacts" options="-parameters" />
     </option>
   </component>
 </project>
