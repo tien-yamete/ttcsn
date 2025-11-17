@@ -9,8 +9,12 @@ import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;
 
-// TODO: dùng để tự động lấy header "Authorization" từ request hiện tại
-
+/**
+ * AuthenticationRequestInterceptor: Interceptor cho Feign Client.
+ * - Tự động lấy header "Authorization" từ HTTP request hiện tại
+ * - Forward header này sang các Feign client calls
+ * - Đảm bảo JWT token được truyền tự động giữa các microservice
+ */
 @Slf4j
 @Component
 public class AuthenticationRequestInterceptor implements RequestInterceptor {

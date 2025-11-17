@@ -14,11 +14,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// RoleController: Chịu trách nhiệm xử lý các API quản lý vai trò (role):
-//          - POST   /roles          : Tạo mới một role.
-//          - GET    /roles          : Lấy danh sách tất cả role hiện có.
-//          - DELETE /roles/{role}   : Xóa một role theo tên.
-
+/**
+ * RoleController: Controller xử lý các API quản lý vai trò (role).
+ * - POST   /roles          : Tạo mới một role (chỉ ADMIN)
+ * - GET    /roles          : Lấy danh sách tất cả role hiện có (chỉ ADMIN)
+ * - DELETE /roles/{role}   : Xóa một role theo tên (chỉ ADMIN)
+ */
 @RestController
 @Slf4j
 @RequestMapping("/roles")

@@ -17,21 +17,18 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
-    @Query("SELECT DISTINCT u FROM User u " +
-           "LEFT JOIN FETCH u.roles r " +
-           "LEFT JOIN FETCH r.permissions " +
-           "WHERE u.email = :email")
+    @Query("SELECT DISTINCT u FROM User u " + "LEFT JOIN FETCH u.roles r "
+            + "LEFT JOIN FETCH r.permissions "
+            + "WHERE u.email = :email")
     Optional<User> findByEmailWithRolesAndPermissions(@Param("email") String email);
 
-    @Query("SELECT DISTINCT u FROM User u " +
-           "LEFT JOIN FETCH u.roles r " +
-           "LEFT JOIN FETCH r.permissions " +
-           "WHERE u.username = :username")
+    @Query("SELECT DISTINCT u FROM User u " + "LEFT JOIN FETCH u.roles r "
+            + "LEFT JOIN FETCH r.permissions "
+            + "WHERE u.username = :username")
     Optional<User> findByUsernameWithRolesAndPermissions(@Param("username") String username);
 
-    @Query("SELECT DISTINCT u FROM User u " +
-           "LEFT JOIN FETCH u.roles r " +
-           "LEFT JOIN FETCH r.permissions " +
-           "WHERE u.id = :id")
+    @Query("SELECT DISTINCT u FROM User u " + "LEFT JOIN FETCH u.roles r "
+            + "LEFT JOIN FETCH r.permissions "
+            + "WHERE u.id = :id")
     Optional<User> findByIdWithRolesAndPermissions(@Param("id") String id);
 }

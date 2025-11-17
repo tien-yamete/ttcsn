@@ -23,6 +23,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * ApplicationInitConfig: Cấu hình khởi tạo dữ liệu mặc định khi ứng dụng khởi động.
+ * - Tự động tạo các role mặc định (USER, ADMIN) nếu chưa tồn tại
+ * - Tự động tạo tài khoản admin mặc định từ cấu hình (app.seed.admin.*)
+ * - Chỉ chạy khi sử dụng MySQL (ConditionalOnProperty)
+ */
 @Configuration
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -50,13 +56,15 @@ public class ApplicationInitConfig {
             log.info("[INIT] Starting default data initialization...");
 
             // 1) Ensure roles
-            Role userRole = roleRepository.findByName(PredefinedRole.USER_ROLE)
+            Role userRole = roleRepository
+                    .findByName(PredefinedRole.USER_ROLE)
                     .orElseGet(() -> roleRepository.save(Role.builder()
                             .name(PredefinedRole.USER_ROLE)
                             .description("User role")
                             .build()));
 
-            Role adminRole = roleRepository.findByName(PredefinedRole.ADMIN_ROLE)
+            Role adminRole = roleRepository
+                    .findByName(PredefinedRole.ADMIN_ROLE)
                     .orElseGet(() -> roleRepository.save(Role.builder()
                             .name(PredefinedRole.ADMIN_ROLE)
                             .description("Admin role")
@@ -90,8 +98,10 @@ public class ApplicationInitConfig {
 
             userRepository.save(admin);
 
-            log.warn("[INIT] Admin '{}' created with default password '{}'. Please change it ASAP.",
-                    adminUsername, adminPassword);
+            log.warn(
+                    "[INIT] Admin '{}' created with default password '{}'. Please change it ASAP.",
+                    adminUsername,
+                    adminPassword);
             log.info("[INIT] Default data initialization completed.");
         };
     }

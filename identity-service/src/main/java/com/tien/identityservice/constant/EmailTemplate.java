@@ -1,5 +1,11 @@
 package com.tien.identityservice.constant;
 
+/**
+ * EmailTemplate: Class chứa các template HTML cho email.
+ * - welcomeEmail: Email chào mừng sau khi xác thực email thành công
+ * - otpEmail: Email gửi mã OTP để xác thực email
+ * - resendVerificationEmail: Email gửi lại mã OTP khi user yêu cầu
+ */
 public class EmailTemplate {
     public static String welcomeEmail(String username) {
         return String.format(

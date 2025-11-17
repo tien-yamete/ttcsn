@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
+// UserService: Service xử lý nghiệp vụ quản lý user.
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,7 @@ public class UserService {
 
     RoleRepository roleRepository;
 
+    // Lấy thông tin user hiện đang đăng nhập
     public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();
         String name = context.getAuthentication().getName();
@@ -44,6 +46,7 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
+    // Cập nhật thông tin user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateUser(String userId, UserUpdateRequest request) {
         User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -57,17 +60,22 @@ public class UserService {
         return userMapper.toUserResponse(userRepository.save(user));
     }
 
+    // Xóa user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(String userId) {
-        userRepository.deleteById(userId);
+        var user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        user.setIsActive(false);
+        userRepository.save(user);
     }
 
+    // Lấy danh sách tất cả user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> getUsers() {
         log.info("In method get Users");
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
+    // Lấy thông tin user theo ID (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse getUser(String id) {
         return userMapper.toUserResponse(

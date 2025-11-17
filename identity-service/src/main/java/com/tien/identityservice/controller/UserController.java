@@ -14,14 +14,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// UserController:Chịu trách nhiệm xử lý các API quản lý người dùng trong hệ thống:
-//          - POST   /users              : Tạo mới một user.
-//          - GET    /users              : Lấy danh sách tất cả user.
-//          - GET    /users/{userId}     : Lấy thông tin chi tiết của user theo ID.
-//          - GET    /users/myInfo       : Lấy thông tin user hiện đang đăng nhập.
-//          - PUT    /users/{userId}     : Cập nhật thông tin của user theo ID.
-//          - DELETE /users/{userId}     : Xóa user theo ID.
-
+/**
+ * UserController: Controller xử lý các API quản lý người dùng trong hệ thống.
+ * - GET    /users              : Lấy danh sách tất cả user (chỉ ADMIN)
+ * - GET    /users/{userId}     : Lấy thông tin chi tiết của user theo ID (chỉ ADMIN)
+ * - GET    /users/myInfo       : Lấy thông tin user hiện đang đăng nhập
+ * - PUT    /users/{userId}     : Cập nhật thông tin của user theo ID (chỉ ADMIN)
+ * - DELETE /users/{userId}     : Xóa user theo ID (chỉ ADMIN)
+ */
 @Slf4j
 @RestController
 @RequestMapping("/users")

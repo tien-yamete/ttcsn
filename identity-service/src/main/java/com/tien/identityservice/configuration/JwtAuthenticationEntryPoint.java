@@ -9,18 +9,30 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tien.identityservice.dto.ApiResponse;
 import com.tien.identityservice.exception.ErrorCode;
 
-// JwtAuthenticationEntryPoint:
-//         - Được gọi khi có request chưa được xác thực hoặc token không hợp lệ.
-//         - Trả về JSON thống nhất thay vì HTML mặc định của Spring Security.
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
-// TODO: Refactor chung JwtAuthenticationEntryPoint cho tất cả các service trong project.
-
+/**
+ * JwtAuthenticationEntryPoint: Xử lý khi request chưa được xác thực hoặc token không hợp lệ.
+ * - Được gọi tự động bởi Spring Security khi:
+ *   + Request không có token
+ *   + Token không hợp lệ hoặc đã hết hạn
+ * - Trả về JSON response thống nhất (thay vì HTML mặc định của Spring Security)
+ * - Status code: 401 Unauthorized
+ */
+@Component
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    ObjectMapper objectMapper;
+
     @Override
     public void commence(
             HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
@@ -35,8 +47,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 .code(errorCode.getCode())
                 .message(errorCode.getMessage())
                 .build();
-
-        ObjectMapper objectMapper = new ObjectMapper();
 
         // Ghi JSON ra response body
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));

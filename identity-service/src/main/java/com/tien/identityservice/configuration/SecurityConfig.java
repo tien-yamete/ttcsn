@@ -2,7 +2,6 @@ package com.tien.identityservice.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,13 +13,27 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+
+/**
+ * SecurityConfig: Cấu hình bảo mật cho toàn bộ ứng dụng.
+ * - Định nghĩa các endpoint public (không cần xác thực)
+ * - Cấu hình OAuth2 Login (Google)
+ * - Cấu hình JWT Resource Server để xác thực token
+ * - Cấu hình password encoder (BCrypt)
+ * - Convert JWT claims thành Spring Security authorities
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SecurityConfig {
 
     // Các endpoint public không yêu cầu xác thực
-    private final String[] PUBLIC_ENPOINTS = {
+    private final String[] PUBLIC_ENDPOINTS = {
         "/auth/registration",
         "/auth/introspect",
         "/auth/logout",
@@ -30,24 +43,15 @@ public class SecurityConfig {
         "/auth/token"
     };
 
-    private final CustomJwtDecoder customJwtDecoder;
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
-
-    public SecurityConfig(
-            CustomJwtDecoder customJwtDecoder,
-            @Lazy OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
-            @Lazy OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler) {
-        this.customJwtDecoder = customJwtDecoder;
-        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
-        this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
-    }
+    CustomJwtDecoder customJwtDecoder;
+    OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         // Cấu hình phân quyền cho các request
-        httpSecurity.authorizeHttpRequests(requests
-                -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENPOINTS)
+        httpSecurity.authorizeHttpRequests(requests -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS)
                 .permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**")
                 .permitAll()
@@ -55,14 +59,13 @@ public class SecurityConfig {
                 .anyRequest()
                 .authenticated());
         // Cấu hình OAuth2 Login
-        httpSecurity.oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2AuthenticationSuccessHandler)
+        httpSecurity.oauth2Login(oauth2 -> oauth2.successHandler(oAuth2AuthenticationSuccessHandler)
                 .failureHandler(oAuth2AuthenticationFailureHandler));
         // Cấu hình Resource Server với JWT
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint));
         // Tắt CSRF (không cần cho API REST stateless)
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
 

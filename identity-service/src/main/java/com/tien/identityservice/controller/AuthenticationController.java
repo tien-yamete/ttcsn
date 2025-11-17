@@ -1,7 +1,5 @@
 package com.tien.identityservice.controller;
 
-import static org.apache.kafka.common.requests.DeleteAclsResponse.log;
-
 import java.text.ParseException;
 
 import jakarta.validation.Valid;
@@ -19,7 +17,19 @@ import com.tien.identityservice.service.AuthenticationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * AuthenticationController: Controller xử lý các API liên quan đến xác thực và đăng ký.
+ * - POST /auth/registration: Đăng ký user mới
+ * - POST /auth/verify-user: Xác thực email bằng OTP
+ * - POST /auth/resend-verification: Gửi lại mã OTP
+ * - POST /auth/token: Đăng nhập (username/password) và nhận JWT token
+ * - POST /auth/introspect: Kiểm tra token có hợp lệ không
+ * - POST /auth/refresh: Làm mới token
+ * - POST /auth/logout: Đăng xuất (revoke token)
+ */
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -61,7 +71,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/introspect")
-    ApiResponse<IntrospectResponse> authenticate(@RequestBody IntrospectRequest request)
+    ApiResponse<IntrospectResponse> introspect(@RequestBody IntrospectRequest request)
             throws ParseException, JOSEException {
         var result = authenticationService.introspect(request);
         return ApiResponse.<IntrospectResponse>builder().result(result).build();
@@ -79,6 +89,4 @@ public class AuthenticationController {
         authenticationService.logout(request);
         return ApiResponse.<Void>builder().build();
     }
-
-
 }

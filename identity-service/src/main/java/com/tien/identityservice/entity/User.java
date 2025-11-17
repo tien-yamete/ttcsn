@@ -3,8 +3,9 @@ package com.tien.identityservice.entity;
 import java.time.LocalDateTime;
 import java.util.Set;
 
-import com.tien.identityservice.constant.SignInProvider;
 import jakarta.persistence.*;
+
+import com.tien.identityservice.constant.SignInProvider;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -47,12 +48,15 @@ public class User {
 
     private LocalDateTime updatedAt;
 
-    @PrePersist void prePersist() {
+    @PrePersist
+    void prePersist() {
         if (email != null) email = email.trim().toLowerCase();
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
     }
-    @PreUpdate void preUpdate() {
+
+    @PreUpdate
+    void preUpdate() {
         if (email != null) email = email.trim().toLowerCase();
         updatedAt = LocalDateTime.now();
     }

@@ -1,5 +1,10 @@
-
 package com.tien.identityservice.configuration;
+
+import java.io.IOException;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.AuthenticationException;
@@ -7,11 +12,11 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationFa
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-
+/**
+ * OAuth2AuthenticationFailureHandler: Xử lý khi OAuth2 login thất bại.
+ * - Lấy thông tin lỗi từ OAuth2 provider hoặc exception
+ * - Redirect về frontend với error message trong query parameter
+ */
 @Component
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
@@ -19,8 +24,9 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
     private String redirectUri;
 
     @Override
-    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
-                                        AuthenticationException exception) throws IOException, ServletException {
+    public void onAuthenticationFailure(
+            HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
+            throws IOException, ServletException {
         // Get error from request parameters (from Google OAuth redirect)
         String error = request.getParameter("error");
         String errorDescription = request.getParameter("error_description");
@@ -31,7 +37,8 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("error", errorMessage)
                 .queryParamIfPresent("error_description", java.util.Optional.ofNullable(errorDescription))
-                .build().toUriString();
+                .build()
+                .toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }

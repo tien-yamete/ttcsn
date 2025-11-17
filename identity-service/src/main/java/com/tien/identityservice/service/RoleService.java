@@ -17,11 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// RoleService: Xử lý nghiệp vụ liên quan đến Role:
-//          - Tạo role mới và gán danh sách permission.
-//          - Lấy danh sách toàn bộ role.
-//          - Xóa role theo tên.
-
+// RoleService: Service xử lý nghiệp vụ liên quan đến Role.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,6 +29,7 @@ public class RoleService {
 
     RoleMapper roleMapper;
 
+    // Tạo role mới và gán danh sách permission (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public RoleResponse create(RoleRequest request) {
         var role = roleMapper.toRole(request);
@@ -43,11 +40,13 @@ public class RoleService {
         return roleMapper.toRoleResponse(role);
     }
 
+    // Lấy danh sách toàn bộ role (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public List<RoleResponse> getAll() {
         return roleRepository.findAll().stream().map(roleMapper::toRoleResponse).toList();
     }
 
+    // Xóa role theo tên (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public void delete(String roleName) {
         roleRepository.deleteById(roleName);

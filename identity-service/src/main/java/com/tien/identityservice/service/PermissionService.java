@@ -16,11 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// PermissionService: Chịu trách nhiệm xử lý nghiệp vụ liên quan đến Permission:
-//          - Tạo permission mới từ request.
-//          - Lấy toàn bộ danh sách permission.
-//          - Xóa permission theo tên.
-
+// PermissionService: Service xử lý nghiệp vụ liên quan đến Permission.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +26,7 @@ public class PermissionService {
 
     PermissionMapper permissionMapper;
 
+    // Tạo permission mới từ request (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public PermissionResponse create(PermissionRequest request) {
         Permission permission = permissionMapper.toPermission(request);
@@ -37,12 +34,14 @@ public class PermissionService {
         return permissionMapper.toPermissionResponse(permission);
     }
 
+    // Lấy toàn bộ danh sách permission (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public List<PermissionResponse> getAll() {
         var permissions = permissionRepository.findAll();
         return permissions.stream().map(permissionMapper::toPermissionResponse).toList();
     }
 
+    // Xóa permission theo tên (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public void delete(String permissionName) {
         permissionRepository.deleteById(permissionName);

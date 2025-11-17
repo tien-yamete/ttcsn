@@ -9,8 +9,15 @@ import org.springframework.stereotype.Component;
 
 import com.nimbusds.jwt.SignedJWT;
 
-// TODO: Giải mã JWT token thủ công (parse claims, header, thời gian hiệu lực)
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * CustomJwtDecoder: Giải mã JWT token thủ công.
+ * - Parse claims, header, thời gian hiệu lực từ token
+ * - Sử dụng Nimbus JOSE để parse và convert sang Spring Security Jwt object
+ * - Được sử dụng bởi SecurityConfig để xác thực JWT token
+ */
+@Slf4j
 @Component
 public class CustomJwtDecoder implements JwtDecoder {
 
@@ -28,7 +35,8 @@ public class CustomJwtDecoder implements JwtDecoder {
                     signedJWT.getJWTClaimsSet().getClaims());
 
         } catch (ParseException e) {
-            throw new JwtException("Invalid token");
+            log.error("Failed to parse JWT token", e);
+            throw new JwtException("Invalid token", e);
         }
     }
 }

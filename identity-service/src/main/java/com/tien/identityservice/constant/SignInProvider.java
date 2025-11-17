@@ -4,4 +4,3 @@ public enum SignInProvider {
     LOCAL,
     GOOGLE
 }
-

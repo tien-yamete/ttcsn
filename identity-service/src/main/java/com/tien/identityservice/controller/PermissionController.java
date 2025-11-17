@@ -14,11 +14,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-// PermissionController: Chịu trách nhiệm xử lý các API quản lý quyền (permission):
-//          - POST   /permissions           : Tạo mới một quyền.
-//          - GET    /permissions           : Lấy danh sách tất cả quyền hiện có.
-//          - DELETE /permissions/{permission} : Xóa một quyền theo tên.
-
+/**
+ * PermissionController: Controller xử lý các API quản lý quyền (permission).
+ * - POST   /permissions           : Tạo mới một quyền (chỉ ADMIN)
+ * - GET    /permissions           : Lấy danh sách tất cả quyền hiện có (chỉ ADMIN)
+ * - DELETE /permissions/{permission} : Xóa một quyền theo tên (chỉ ADMIN)
+ */
 @RestController
 @Slf4j
 @RequestMapping("/permissions")

@@ -15,46 +15,58 @@ import com.tien.identityservice.dto.ApiResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
-// GlobalExceptionHandler: Chịu trách nhiệm xử lý tập trung tất cả exception trong hệ thống.
-
+/**
+ * GlobalExceptionHandler: Xử lý tập trung tất cả exception trong hệ thống.
+ * - handlingException: Xử lý exception chưa được bắt riêng (log stack trace, trả về UNCATEGORIZED_EXCEPTION)
+ * - handlingAppException: Xử lý AppException (custom business exception)
+ * - handlingAccessDeniedException: Xử lý AccessDeniedException (không có quyền)
+ * - handlingValidation: Xử lý lỗi validation (MethodArgumentNotValidException)
+ */
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
     private static final String MIN_ATTRIBUTE = "min";
-    //      Handler mặc định cho Exception chưa được bắt riêng.
-    //            - Log stack trace.
-    //            - Trả về mã lỗi UNCLASSIFIED_EXCEPTION.
 
+    /**
+     * Handler mặc định cho Exception chưa được bắt riêng.
+     * - Log stack trace
+     * - Trả về mã lỗi UNCATEGORIZED_EXCEPTION
+     */
     @ExceptionHandler(value = Exception.class)
-    ResponseEntity<ApiResponse> handlingRuntimeException(RuntimeException exception) {
+    ResponseEntity<ApiResponse<?>> handlingException(Exception exception) {
         log.error("Exception: ", exception);
-        ApiResponse apiResponse = new ApiResponse();
+        ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
 
-        apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
-        apiResponse.setMessage(ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage());
-
-        return ResponseEntity.badRequest().body(apiResponse);
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
     }
 
-    //    Handler cho AppException (custom business exception).
-    //             - Lấy ErrorCode từ exception.
-    //             - Trả về status và message theo errorCode.
+    /**
+     * Handler cho AppException (custom business exception).
+     * - Lấy ErrorCode từ exception
+     * - Trả về status và message theo errorCode
+     */
     @ExceptionHandler(value = AppException.class)
-    ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
+    ResponseEntity<ApiResponse<?>> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse apiResponse = new ApiResponse();
 
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(errorCode.getMessage());
-
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+        return ResponseEntity.status(errorCode.getStatusCode())
+                .body(ApiResponse.builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
     }
 
-    //    Handler cho AccessDeniedException (Spring Security ném ra khi không có quyền).
-    //             - Trả về 401 Unauthorized.
+    /**
+     * Handler cho AccessDeniedException (Spring Security ném ra khi không có quyền).
+     * - Trả về 403 Forbidden (UNAUTHORIZED error code)
+     */
     @ExceptionHandler(value = AccessDeniedException.class)
-    ResponseEntity<ApiResponse> handlingAccessDeniedException(AccessDeniedException exception) {
+    ResponseEntity<ApiResponse<?>> handlingAccessDeniedException(AccessDeniedException exception) {
         ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
 
         return ResponseEntity.status(errorCode.getStatusCode())
@@ -64,50 +76,48 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-    //    Handler cho lỗi validation (MethodArgumentNotValidException).
-    //             - Lấy error message từ @Valid annotation.
-    //      - Nếu message trùng với tên ErrorCode enum -> map ra ErrorCode tương ứng.
-    //      - Nếu có attributes (ví dụ min=18), thì thay thế vào message template.
+    /**
+     * Handler cho lỗi validation (MethodArgumentNotValidException).
+     * - Lấy error message từ @Valid annotation
+     * - Nếu message trùng với tên ErrorCode enum -> map ra ErrorCode tương ứng
+     * - Nếu có attributes (ví dụ min=18), thì thay thế vào message template
+     */
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException e) {
+    ResponseEntity<ApiResponse<?>> handlingValidation(MethodArgumentNotValidException e) {
         // Lấy message mặc định
-        String enumkey = e.getFieldError().getDefaultMessage();
+        String enumKey = e.getFieldError().getDefaultMessage();
 
         ErrorCode errorCode = ErrorCode.INVALID_KEY;
-
         Map<String, Object> attributes = null;
 
         try {
-            // Nếu enumkey trùng với tên ErrorCode -> map đúng mã lỗi
-            errorCode = ErrorCode.valueOf(enumkey);
+            // Nếu enumKey trùng với tên ErrorCode -> map đúng mã lỗi
+            errorCode = ErrorCode.valueOf(enumKey);
 
             // Lấy constraint detail từ annotation validation
             var constraintViolation = e.getBindingResult().getAllErrors().get(0).unwrap(ConstraintViolation.class);
-
             attributes = constraintViolation.getConstraintDescriptor().getAttributes();
 
-            log.info(attributes.toString());
+            log.debug("Validation attributes: {}", attributes);
 
         } catch (IllegalArgumentException iae) {
-            // Trường hợp enumkey không match ErrorCode nào
+            // Trường hợp enumKey không match ErrorCode nào
+            log.debug("Enum key '{}' does not match any ErrorCode", enumKey);
         }
 
-        ApiResponse response = new ApiResponse<>();
+        String message =
+                Objects.nonNull(attributes) ? mapAttribute(errorCode.getMessage(), attributes) : errorCode.getMessage();
 
-        response.setCode(errorCode.getCode());
-
-        response.setMessage(
-                Objects.nonNull(attributes)
-                        ? mapAttribute(errorCode.getMessage(), attributes)
-                        : errorCode.getMessage());
-
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.builder()
+                        .code(errorCode.getCode())
+                        .message(message)
+                        .build());
     }
 
     // Thay thế placeholder trong message (ví dụ {min}) bằng giá trị thực tế
     private String mapAttribute(String message, Map<String, Object> attributes) {
         String minValue = String.valueOf(attributes.get(MIN_ATTRIBUTE));
-
         return message.replace("{" + MIN_ATTRIBUTE + "}", minValue);
     }
 }
