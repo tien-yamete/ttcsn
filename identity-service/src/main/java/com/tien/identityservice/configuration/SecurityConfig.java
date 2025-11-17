@@ -2,6 +2,7 @@ package com.tien.identityservice.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,9 +31,16 @@ public class SecurityConfig {
     };
 
     private final CustomJwtDecoder customJwtDecoder;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
-    public SecurityConfig(CustomJwtDecoder customJwtDecoder) {
+    public SecurityConfig(
+            CustomJwtDecoder customJwtDecoder,
+            @Lazy OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+            @Lazy OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler) {
         this.customJwtDecoder = customJwtDecoder;
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+        this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
     }
 
     @Bean
@@ -41,9 +49,15 @@ public class SecurityConfig {
         httpSecurity.authorizeHttpRequests(requests
                 -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENPOINTS)
                 .permitAll()
+                .requestMatchers("/oauth2/**", "/login/oauth2/**")
+                .permitAll()
                 // .requestMatchers(HttpMethod.GET, "/users").hasRole(Role.ADMIN.name()).hasAuthority("ROLE_ADMIN")
                 .anyRequest()
                 .authenticated());
+        // Cấu hình OAuth2 Login
+        httpSecurity.oauth2Login(oauth2 -> oauth2
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler(oAuth2AuthenticationFailureHandler));
         // Cấu hình Resource Server với JWT
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)

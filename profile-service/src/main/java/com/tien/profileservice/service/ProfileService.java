@@ -34,6 +34,13 @@ public class ProfileService {
 
     ImageUploadKafkaService imageUploadKafkaService;
     public ProfileResponse createProfile(ProfileCreationRequest request) {
+        // Check if profile already exists for this userId (idempotent operation)
+        var existingProfile = profileRepository.findByUserId(request.getUserId());
+        if (existingProfile.isPresent()) {
+            log.info("Profile already exists for userId: {}", request.getUserId());
+            return profileMapper.toProfileResponse(existingProfile.get());
+        }
+
         Profile userProfile = profileMapper.toProfile(request);
         userProfile = profileRepository.save(userProfile);
 

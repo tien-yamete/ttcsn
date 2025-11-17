@@ -17,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -40,24 +39,22 @@ public class ConversationService {
     }
 
     public ConversationResponse create(ConversationRequest request) {
-        // fetch profile info
         String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
         var userInfoResponse = profileClient.getProfile(currentUserId);
 
         var participantInfoResponses = profileClient.getProfile(request.getParticipantIds().get(0));
 
-        if(Objects.isNull(userInfoResponse)|| Objects.isNull(participantInfoResponses)) {
+        if (Objects.isNull(userInfoResponse) || Objects.isNull(participantInfoResponses)) {
             throw new AppException(ErrorCode.USER_NOT_EXISTED);
         }
         var userInfo = userInfoResponse.getResult();
 
         var participantInfo = participantInfoResponses.getResult();
 
-        List<String> userIds = new ArrayList<>();
-        userIds.add(currentUserId);
-        userIds.add(participantInfo.getUserId());
-
-        var sortedIds =  userIds.stream().sorted().toList();
+        var sortedIds = List.of(currentUserId, participantInfo.getUserId())
+                .stream()
+                .sorted()
+                .toList();
         String userIdHash = generateParticipantHash(sortedIds);
 
         var conversation = conversationRepository.findByParticipantsHash(userIdHash)
@@ -78,7 +75,7 @@ public class ConversationService {
                                     .avatar(participantInfo.getAvatar())
                                     .build()
                     );
-                    // Build conversation
+
                     Conversation newConversation = Conversation.builder()
                             .typeConversation(request.getTypeConversation())
                             .participants(participantInfos)
@@ -94,9 +91,6 @@ public class ConversationService {
     private String generateParticipantHash(List<String> ids) {
         StringJoiner stringJoiner = new StringJoiner("_");
         ids.forEach(stringJoiner::add);
-
-        // SHA 256
-
         return stringJoiner.toString();
     }
 

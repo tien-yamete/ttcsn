@@ -27,8 +27,8 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
+            client-id: ${CLIENT_ID}
+            client-secret: ${CLIENT_SECRET}
             scope: profile, email
             redirect-uri: "${GOOGLE_REDIRECT_URI}/{registrationId}"
             client-name: Google
@@ -40,7 +40,7 @@ spring:
             user-name-attribute: sub
 jwt:
   signerKey: ${JWT_SIGNER_KEY}
-  issuer: "tavantien.com"     # Issuer c?a JWT
+  issuer: "friendify.com"     # Issuer c?a JWT
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in seconds
 app:

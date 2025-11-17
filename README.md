@@ -14,13 +14,14 @@ Goals of the project:
 ## 🏗️ System Architecture
 The platform is structured into several microservices:
 
-- **Identity Service**: User registration, login, and authentication secured with Spring Security and JWT.
-- **User Service**: Manage user profiles and account settings.
-- **Post Service**: CRUD operations for posts with support for media attachments.
-- **Comment Service**: Manage comments and likes on posts.
-- **Friend Service**: Handle friend requests, connections, and friend lists.
-- **Notification Service**: Provide user notifications and system events.
-- **Frontend (React.js)**: User interface for accessing and interacting with the system.
+- **API Gateway** (Port 8080): Central entry point for all client requests, routing to appropriate microservices.
+- **Config Server** (Port 8888): Centralized configuration management for all microservices.
+- **Identity Service** (Port 8081): User registration, login, and authentication secured with Spring Security and JWT.
+- **Profile Service** (Port 8082): Manage user profiles and account settings.
+- **Notification Service** (Port 8083): Provide user notifications and system events.
+- **Post Service** (Port 8084): CRUD operations for posts with support for media attachments.
+- **File Service** (Port 8085): Handle file uploads and media management.
+- **Chat Service** (Port 8086): Real-time messaging and chat functionality with WebSocket support.
 
 ---
 
@@ -49,16 +50,16 @@ The platform is structured into several microservices:
 ## 📂 Project Structure
 ```
 microservice-social-network/
-│── backend/
-│   ├── identity-service/
-│   ├── user-service/
-│   ├── post-service/
-│   ├── comment-service/
-│   ├── friend-service/
-│   ├── notification-service/
-│
-│── frontend/
-│   └── friendify-web/
+│── api-gateway/          # API Gateway service
+│── config-server/        # Configuration server
+│── identity-service/     # Authentication & authorization
+│── profile-service/       # User profile management
+│── notification-service/ # Notification handling
+│── post-service/         # Post management
+│── file-service/         # File upload & media management
+│── chat-service/         # Real-time chat & messaging
+│── shared-common/        # Shared common utilities
+│── shared-contacts/      # Shared contact/friend utilities
 │
 └── README.md
 ```
@@ -81,31 +82,31 @@ git clone https://github.com/tien-yamete/friendify.git
 cd friendify
 ```
 
-Configure environment (DB, Redis, JWT_SECRET, Cloudinary, Email) inside:
+**Important**: Start services in the following order:
+1. **Config Server** (Port 8888) - Must be started first
+2. **API Gateway** (Port 8080)
+3. Other microservices (Identity, Profile, Notification, Post, File, Chat)
+
+Configure environment (DB, Redis, JWT_SECRET, Cloudinary, Email) inside each service's:
 ```
 src/main/resources/application.yaml
 ```
 
-Build the backend:
+Build all services:
 ```bash
+# From root directory
 mvn clean install
 ```
 
-Run a service:
+Run a service (from the service directory):
 ```bash
+cd <service-name>
 mvn spring-boot:run
 # or
-java -jar target/friendify-0.0.1-SNAPSHOT.jar
+java -jar target/<service-name>-0.0.1-SNAPSHOT.jar
 ```
 
-Run the frontend:
-```bash
-cd frontend/friendify-web
-npm install
-npm start
-```
-
-Access Swagger UI:
+Access Swagger UI (via API Gateway):
 ```
 http://localhost:8080/swagger-ui.html
 ```
@@ -119,15 +120,16 @@ docker-compose up --build
 ---
 
 ## 📌 Features
+- **API Gateway**: Centralized routing and load balancing for all microservices.
 - **Identity & Authentication**: Secure login/registration with JWT and Spring Security.
 - **User Management**: Profile updates, role-based access (Student, Instructor, Admin).
 - **Post Management**: Create, edit, delete, and list posts with text and media support.
-- **Comment & Like**: User engagement through comments and likes.
-- **Friendship System**: Friend requests, approvals, and friend list management.
+- **Real-time Chat**: WebSocket-based messaging and chat functionality.
+- **File Management**: File uploads and media management integrated with Cloudinary.
 - **Notifications**: Event-driven notifications for interactions.
-- **File Uploads**: Integrated with Cloudinary for media uploads.
 - **Email Service**: Account verification and password reset via SendGrid.
 - **Caching**: Redis for performance improvement.
+- **Configuration Management**: Centralized configuration via Spring Cloud Config Server.
 - **API Documentation**: Interactive Swagger UI for exploring APIs.
 
 ---

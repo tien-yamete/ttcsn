@@ -39,7 +39,6 @@ public class ChatMessageService {
     public ChatMessageResponse create(ChatMessageRequest request) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        //validate conversationId
         conversationRepository.findById(request.getConversationId())
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
                 .getParticipants()
@@ -47,14 +46,13 @@ public class ChatMessageService {
                 .filter(participantInfo -> userId.equals(participantInfo.getUserId()))
                 .findAny()
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-        //Get UserInfo from Profile Service
+
         var userInfoResponse = profileClient.getProfile(userId);
-        if(Objects.isNull(userInfoResponse)) {
+        if (Objects.isNull(userInfoResponse)) {
             throw new AppException(ErrorCode.USER_NOT_EXISTED);
         }
         ProfileResponse userInfo = userInfoResponse.getResult();
 
-        //Build chat message info
         ChatMessage chatMessage = chatMessageMapper.toChatMessage(request);
 
         chatMessage.setSender(ParticipantInfo.builder()
@@ -66,9 +64,7 @@ public class ChatMessageService {
                 .build());
 
         chatMessage.setCreatedDate(Instant.now());
-        //Create chatMessage
         chatMessageRepository.save(chatMessage);
-        //Covert entity to response
 
         return toChatMessageResponse(chatMessage);
     }
@@ -76,7 +72,6 @@ public class ChatMessageService {
     public List<ChatMessageResponse> getMessages(String conversationId) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        //validate conversationId
         conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
                 .getParticipants()
@@ -84,6 +79,7 @@ public class ChatMessageService {
                 .filter(participantInfo -> userId.equals(participantInfo.getUserId()))
                 .findAny()
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+
         var messages = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
 
         return messages.stream().map(this::toChatMessageResponse).toList();

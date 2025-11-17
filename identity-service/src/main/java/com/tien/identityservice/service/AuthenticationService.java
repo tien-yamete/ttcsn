@@ -23,6 +23,7 @@ import com.tien.event.dto.NotificationEvent;
 import com.tien.identityservice.constant.EmailTemplate;
 import com.tien.identityservice.constant.OtpType;
 import com.tien.identityservice.constant.PredefinedRole;
+import com.tien.identityservice.constant.SignInProvider;
 import com.tien.identityservice.dto.request.*;
 import com.tien.identityservice.dto.response.AuthenticationResponse;
 import com.tien.identityservice.dto.response.IntrospectResponse;
@@ -228,7 +229,7 @@ public class AuthenticationService {
     // Xác thực username/password và phát access token.
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         var user = userRepository
-                .findByUsername(request.getUsername())
+                .findByUsernameWithRolesAndPermissions(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
@@ -278,10 +279,10 @@ public class AuthenticationService {
         invalidatedTokenRepository.save(invalidatedToken);
 
         // Lấy user từ subject để phát token mới
-        var username = signJWT.getJWTClaimsSet().getSubject();
+        var userId = signJWT.getJWTClaimsSet().getSubject();
 
-        var user =
-                userRepository.findByUsername(username).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        var user = userRepository.findByIdWithRolesAndPermissions(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
         var token = generateToken(user);
 
@@ -314,17 +315,32 @@ public class AuthenticationService {
         return signedJWT;
     }
 
+    @Transactional(readOnly = true)
     public String generateToken(User user) {
+        // Ensure roles and permissions are loaded
+        User userWithRoles = userRepository.findByIdWithRolesAndPermissions(user.getId())
+                .orElse(user);
+        
+        // Initialize lazy collections if needed
+        if (userWithRoles.getRoles() != null) {
+            userWithRoles.getRoles().size(); // Force initialization
+            userWithRoles.getRoles().forEach(role -> {
+                if (role.getPermissions() != null) {
+                    role.getPermissions().size(); // Force initialization
+                }
+            });
+        }
+
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getId()) // them userId vao token
+                .subject(userWithRoles.getId()) // them userId vao token
                 .issuer(ISSUER)
                 .issueTime(new Date())
                 .expirationTime(new Date(
                         Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()))
                 .jwtID(UUID.randomUUID().toString())
-                .claim("scope", buildScope(user)) // scope dạng "ROLE_X READ_USER WRITE_USER ..."
+                .claim("scope", buildScope(userWithRoles)) // scope dạng "ROLE_X READ_USER WRITE_USER ..."
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -357,5 +373,63 @@ public class AuthenticationService {
         Random random = new Random();
         int code = random.nextInt(900000) + 100000;
         return String.valueOf(code);
+    }
+
+    @Transactional
+    public User createUserFromGoogleOAuth(String email, String name, String providerUserId) {
+        // Check if user already exists by email
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            // Update provider info if not set
+            if (user.getProvider() == null || user.getProvider() != SignInProvider.GOOGLE) {
+                user.setProvider(SignInProvider.GOOGLE);
+                user.setProviderUserId(providerUserId);
+                user.setEmailVerified(true);
+                user.setIsActive(true);
+                user = userRepository.save(user);
+            }
+            return user;
+        }
+
+        // Create new user from Google OAuth
+        String[] nameParts = name != null && !name.isEmpty() ? name.split(" ", 2) : new String[] {"", ""};
+        String firstName = nameParts.length > 0 ? nameParts[0] : "";
+        String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        String username = email.split("@")[0] + "_" + System.currentTimeMillis();
+
+        User user = User.builder()
+                .email(email)
+                .username(username)
+                .provider(SignInProvider.GOOGLE)
+                .providerUserId(providerUserId)
+                .emailVerified(true)
+                .isActive(true)
+                .build();
+
+        HashSet<Role> roles = new HashSet<>();
+        roleRepository.findById(PredefinedRole.USER_ROLE).ifPresent(roles::add);
+        user.setRoles(roles);
+
+        try {
+            user = userRepository.save(user);
+        } catch (DataIntegrityViolationException exception) {
+            // If username conflict, try again with different username
+            username = email.split("@")[0] + "_" + System.currentTimeMillis() + "_" + new Random().nextInt(1000);
+            user.setUsername(username);
+            user = userRepository.save(user);
+        }
+
+        // Create profile for the user
+        ProfileCreationRequest profileRequest = ProfileCreationRequest.builder()
+                .userId(user.getId())
+                .username(username)
+                .firstName(firstName)
+                .lastName(lastName)
+                .build();
+
+        profileClient.createProfile(profileRequest);
+
+        return user;
     }
 }

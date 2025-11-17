@@ -21,8 +21,16 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
                                         AuthenticationException exception) throws IOException, ServletException {
+        // Get error from request parameters (from Google OAuth redirect)
+        String error = request.getParameter("error");
+        String errorDescription = request.getParameter("error_description");
+
+        // Use error from request if available, otherwise use exception message
+        String errorMessage = error != null ? error : exception.getLocalizedMessage();
+
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("error", exception.getLocalizedMessage())
+                .queryParam("error", errorMessage)
+                .queryParamIfPresent("error_description", java.util.Optional.ofNullable(errorDescription))
                 .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

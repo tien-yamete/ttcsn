@@ -1,0 +1,174 @@
+{
+	"info": {
+		"_postman_id": "chat-service-api",
+		"name": "Chat Service API",
+		"description": "API collection for Chat Service - Friendify Social Network",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Conversation APIs",
+			"item": [
+				{
+					"name": "Create Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"typeConversation\": \"DIRECT\",\n  \"participantIds\": [\"user-id-2\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/conversations/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"conversations",
+								"create"
+							]
+						},
+						"description": "Tạo conversation mới với user khác"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Conversations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/conversations/my-conversations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"conversations",
+								"my-conversations"
+							]
+						},
+						"description": "Lấy danh sách tất cả conversations của user hiện tại"
+					},
+					"response": []
+				}
+			],
+			"description": "APIs để quản lý conversations"
+		},
+		{
+			"name": "Chat Message APIs",
+			"item": [
+				{
+					"name": "Create Chat Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversationId\": \"{{conversation_id}}\",\n  \"message\": \"Hello, this is a test message!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/messages/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"messages",
+								"create"
+							]
+						},
+						"description": "Gửi message mới trong conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Messages",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/messages?conversationId={{conversation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"messages"
+							],
+							"query": [
+								{
+									"key": "conversationId",
+									"value": "{{conversation_id}}",
+									"description": "ID của conversation"
+								}
+							]
+						},
+						"description": "Lấy danh sách tất cả messages trong conversation"
+					},
+					"response": []
+				}
+			],
+			"description": "APIs để quản lý chat messages"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api/v1/chat",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "your-jwt-token-here",
+			"type": "string"
+		},
+		{
+			"key": "conversation_id",
+			"value": "conversation-id-here",
+			"type": "string"
+		}
+	]
+}
+

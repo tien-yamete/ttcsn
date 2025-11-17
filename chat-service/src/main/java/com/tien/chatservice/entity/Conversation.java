@@ -1,11 +1,17 @@
 package com.tien.chatservice.entity;
 
 import com.tien.chatservice.constant.TypeConversation;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
-import org.springframework.data.mongodb.core.index.Indexed;
+
 import java.time.Instant;
 import java.util.List;
 
