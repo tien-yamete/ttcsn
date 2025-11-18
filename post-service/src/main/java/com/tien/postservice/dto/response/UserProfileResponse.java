@@ -18,4 +18,6 @@ public class UserProfileResponse {
     String lastName;
     LocalDate dob;
     String city;
+    String avatar;
+    String backgroundImage;
 }

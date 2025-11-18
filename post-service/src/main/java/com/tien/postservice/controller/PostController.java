@@ -9,7 +9,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -20,10 +22,12 @@ import java.util.List;
 public class PostController {
     PostService postService;
 
-    @PostMapping("/create")
-    ApiResponse<PostResponse> createPost(@RequestBody PostRequest request){
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ApiResponse<PostResponse> createPost(
+            @RequestParam(value = "content", required = false) String content,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images){
         return ApiResponse.<PostResponse>builder()
-                .result(postService.createPost(request))
+                .result(postService.createPost(content, images))
                 .build();
     }
 

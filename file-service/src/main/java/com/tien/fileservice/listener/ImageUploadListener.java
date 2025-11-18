@@ -30,14 +30,33 @@ public class ImageUploadListener {
             @Header(KafkaHeaders.RECEIVED_KEY) String correlationId,
             @Payload ImageUploadEvent event) {
         log.info("Received image upload event with correlationId: {}, event: {}", correlationId, event);
+        
+        // Validate correlationId
+        if (correlationId == null || correlationId.isEmpty()) {
+            log.error("Received image upload event without correlationId in message key");
+            return;
+        }
+        
+        // Validate event
+        if (event == null) {
+            log.error("Received null ImageUploadEvent with correlationId: {}", correlationId);
+            return;
+        }
+        
         try {
             ImageUploadedEvent uploadedEvent = imageService.uploadImage(event);
-            log.info("Image uploaded successfully, sending response with correlationId: {}", correlationId);
+            
+            if (uploadedEvent == null) {
+                log.error("ImageService returned null ImageUploadedEvent for correlationId: {}", correlationId);
+                return;
+            }
+            
+            log.info("Image uploaded successfully, sending response with correlationId: {}, imageUrl: {}", 
+                    correlationId, uploadedEvent.imageUrl());
             // Send response with correlation ID as key for proper routing
             kafkaTemplate.send(ImageTopics.IMAGE_UPLOADED, correlationId, uploadedEvent);
         } catch (Exception e) {
             log.error("Failed to upload image with correlationId {}: {}", correlationId, e.getMessage(), e);
-            // In production, you might want to send an error event back
         }
     }
 }
