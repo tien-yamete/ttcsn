@@ -273,6 +273,7 @@ public class ImageService {
         return switch (imageType) {
             case AVATAR -> "avatars/%s".formatted(ownerId);
             case POST_IMAGE -> "posts/%s/%s".formatted(ownerId, postId);
+            case BACKGROUND_IMAGE ->  "backgrounds/%s".formatted(ownerId);
         };
     }
 

@@ -73,6 +73,44 @@ public class ImageUploadKafkaService {
         }
     }
 
+    public ImageUploadedEvent uploadBackgroundImage(MultipartFile file, String ownerId) throws Exception {
+        // Convert file to base64
+        String base64 = MediaConverter.convertToBase64(List.of(file)).get(0);
+
+        // Create a unique correlation ID
+        String correlationId = UUID.randomUUID().toString();
+
+        // Create upload event (correlation ID will be used as Kafka message key)
+        ImageUploadEvent event = new ImageUploadEvent(
+                List.of(base64),
+                ImageType.BACKGROUND_IMAGE,
+                ownerId,
+                null,
+                null
+        );
+
+        // Create future for async response
+        CompletableFuture<ImageUploadedEvent> future = new CompletableFuture<>();
+        pendingUploads.put(correlationId, future);
+
+        try {
+            // Send event to Kafka
+            kafkaTemplate.send(ImageTopics.IMAGE_UPLOAD, correlationId, event);
+            log.info("Sent image upload event with correlationId: {}", correlationId);
+
+            // Wait for response (with timeout)
+            ImageUploadedEvent result = future.get(30, TimeUnit.SECONDS);
+            log.info("Received image upload response for correlationId: {}", correlationId);
+            return result;
+        } catch (Exception e) {
+            pendingUploads.remove(correlationId);
+            log.error("Failed to upload image via Kafka: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            pendingUploads.remove(correlationId);
+        }
+    }
+
     @KafkaListener(topics = ImageTopics.IMAGE_UPLOADED, groupId = "profile-service-group")
     public void handleImageUploaded(
             @Header(KafkaHeaders.RECEIVED_KEY) String correlationId,

@@ -31,4 +31,6 @@ public class Profile {
     String city;
 
     String avatar;
+
+    String backgroundImage;
 }

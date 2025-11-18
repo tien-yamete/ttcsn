@@ -108,6 +108,29 @@ public class ProfileService {
         return profileMapper.toProfileResponse(profileRepository.save(profile));
     }
 
+    public ProfileResponse uploadBackgroundImage(MultipartFile file) {
+        // 1) Validate auth
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        String userId = authentication.getName();
+
+        var profile =
+                profileRepository.findByUserId(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Upload file using Kafka
+        try {
+            var uploadedEvent = imageUploadKafkaService.uploadBackgroundImage(file, userId);
+            profile.setBackgroundImage(uploadedEvent.imageUrl());
+        } catch (Exception e) {
+            log.error("Failed to upload background image via Kafka: {}", e.getMessage(), e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+
+        return profileMapper.toProfileResponse(profileRepository.save(profile));
+    }
+
     public List<ProfileResponse> search(SearchUserRequest request) {
         var userId = SecurityContextHolder.getContext().getAuthentication().getName();
         List<Profile> userProfiles = profileRepository.findByUsernameContainingIgnoreCase(request.getKeyword());

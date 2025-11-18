@@ -19,4 +19,5 @@ public class ProfileResponse {
     LocalDate dob;
     String city;
     String avatar;
+    String backgroundImage;
 }

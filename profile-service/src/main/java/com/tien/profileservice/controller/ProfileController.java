@@ -65,4 +65,11 @@ public class ProfileController {
                 .result(profileService.updateAvatar(file))
                 .build();
     }
+
+    @PutMapping("/users/background")
+    ApiResponse<ProfileResponse> updateBackgroundImage(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.<ProfileResponse>builder()
+                .result(profileService.uploadBackgroundImage(file))
+                .build();
+    }
 }
