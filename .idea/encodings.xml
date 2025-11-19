@@ -13,5 +13,6 @@
     <file url="file://$PROJECT_DIR$/profile-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-common/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/shared-contacts/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/social-service/src/main/java" charset="UTF-8" />
   </component>
 </project>

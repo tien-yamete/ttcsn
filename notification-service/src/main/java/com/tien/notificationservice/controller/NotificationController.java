@@ -24,10 +24,35 @@ public class NotificationController {
     @KafkaListener(topics = "notification-delivery")
     public void listenNotificationDelivery(NotificationEvent message) {
         log.info("Message received: {}", message);
-        emailService.sendEmail(SendEmailRequest.builder()
-                .to(Recipient.builder().email(message.getRecipient()).build())
-                .subject(message.getSubject())
-                .htmlContent(message.getBody())
-                .build());
+        
+        if (message == null) {
+            log.error("Received null NotificationEvent");
+            return;
+        }
+        
+        if (message.getRecipient() == null || message.getRecipient().isEmpty()) {
+            log.error("NotificationEvent has null or empty recipient");
+            return;
+        }
+        
+        if (message.getSubject() == null || message.getSubject().isEmpty()) {
+            log.warn("NotificationEvent has null or empty subject for recipient: {}", message.getRecipient());
+        }
+        
+        if (message.getBody() == null || message.getBody().isEmpty()) {
+            log.warn("NotificationEvent has null or empty body for recipient: {}", message.getRecipient());
+        }
+        
+        try {
+            emailService.sendEmail(SendEmailRequest.builder()
+                    .to(Recipient.builder().email(message.getRecipient()).build())
+                    .subject(message.getSubject())
+                    .htmlContent(message.getBody())
+                    .build());
+            log.info("Email sent successfully to: {}", message.getRecipient());
+        } catch (Exception e) {
+            log.error("Failed to send email to: {}", message.getRecipient(), e);
+            // Don't rethrow to avoid Kafka message retry loop
+        }
     }
 }
