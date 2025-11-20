@@ -34,15 +34,17 @@ public class FriendshipController {
     }
 
     @PostMapping("/{friendId}/reject")
-    void rejectFriendRequest(@PathVariable String friendId) {
+    ApiResponse<Void> rejectFriendRequest(@PathVariable String friendId) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         friendshipService.rejectFriendRequest(userId, friendId);
+        return ApiResponse.<Void>builder().build();
     }
 
     @DeleteMapping("/{friendId}")
-    void removeFriend(@PathVariable String friendId) {
+    ApiResponse<Void> removeFriend(@PathVariable String friendId) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         friendshipService.removeFriend(userId, friendId);
+        return ApiResponse.<Void>builder().build();
     }
 
     @GetMapping("/friends")

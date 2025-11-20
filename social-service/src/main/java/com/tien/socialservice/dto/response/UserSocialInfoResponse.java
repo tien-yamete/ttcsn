@@ -3,16 +3,17 @@ package com.tien.socialservice.dto.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class FollowResponse {
-    String id;
-    String followerId;
-    String followingId;
-    LocalDateTime createdAt;
+public class UserSocialInfoResponse {
+    String userId;
+    long followersCount;
+    long followingCount;
+    long friendsCount;
+    boolean isFollowing;
+    boolean isFriend;
+    boolean isBlocked;
 }
