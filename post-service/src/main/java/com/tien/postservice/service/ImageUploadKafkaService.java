@@ -68,19 +68,13 @@ public class ImageUploadKafkaService {
         CompletableFuture<ImageUploadedEvent> future = new  CompletableFuture<>();
         pendingUploads.put(correlationId, future);
 
-        try{
+        try {
             kafkaTemplate.send(ImageTopics.IMAGE_UPLOAD, correlationId, event);
-
-            ImageUploadedEvent result = future.get(30, TimeUnit.SECONDS);
-
-            return result;
-        }
-        catch (Exception e) {
-            pendingUploads.remove(correlationId);
+            return future.get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
             log.error("Failed to upload post image via Kafka: {}", e.getMessage(), e);
             throw e;
-        }
-        finally {
+        } finally {
             pendingUploads.remove(correlationId);
         }
     }

@@ -11,4 +11,5 @@ import java.util.List;
 @Repository
 public interface PostRepository extends MongoRepository<Post, String> {
     Page<Post> findAllByUserId(String userId, Pageable pageable);
+    Page<Post> findByContentContainingIgnoreCase(String keyword, Pageable pageable);
 }
