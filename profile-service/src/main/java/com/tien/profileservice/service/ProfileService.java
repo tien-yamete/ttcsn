@@ -133,10 +133,15 @@ public class ProfileService {
 
     public List<ProfileResponse> search(SearchUserRequest request) {
         var userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        List<Profile> userProfiles = profileRepository.findByUsernameContainingIgnoreCase(request.getKeyword());
-        log.info(userId);
-        log.info(request.getKeyword());
-        log.info(userProfiles.toString());
+        String keyword = request.getKeyword() != null ? request.getKeyword().trim() : "";
+        
+        if (keyword.isEmpty()) {
+            return List.of();
+        }
+        
+        List<Profile> userProfiles = profileRepository.searchByKeyword(keyword);
+        log.info("Searching for keyword: {}, found {} profiles", keyword, userProfiles.size());
+        
         return userProfiles.stream()
                 .filter(userProfile -> !userId.equals(userProfile.getUserId()))
                 .map(profileMapper::toProfileResponse)

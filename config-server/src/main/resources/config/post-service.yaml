@@ -23,3 +23,5 @@ app:
   services:
     profile:
       url: http://localhost:8082/profile
+    social:
+      url: http://localhost:8087/social

@@ -3,11 +3,11 @@ package com.tien.postservice.controller;
 import com.tien.postservice.dto.ApiResponse;
 import com.tien.postservice.dto.PageResponse;
 import com.tien.postservice.dto.response.PostResponse;
+import com.tien.postservice.entity.PrivacyType;
 import com.tien.postservice.service.PostService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,7 +16,6 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostController {
     PostService postService;
@@ -24,9 +23,10 @@ public class PostController {
     @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ApiResponse<PostResponse> createPost(
             @RequestParam(value = "content", required = false) String content,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images){
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "privacy", required = false) PrivacyType privacy){
         return ApiResponse.<PostResponse>builder()
-                .result(postService.createPost(content, images))
+                .result(postService.createPost(content, images, privacy))
                 .build();
     }
 
@@ -146,9 +146,10 @@ public class PostController {
     ApiResponse<PostResponse> updatePost(
             @PathVariable String postId,
             @RequestParam(value = "content", required = false) String content,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "privacy", required = false) PrivacyType privacy) {
         return ApiResponse.<PostResponse>builder()
-                .result(postService.updatePost(postId, content, images))
+                .result(postService.updatePost(postId, content, images, privacy))
                 .build();
     }
 
@@ -157,5 +158,14 @@ public class PostController {
             @PathVariable String postId) {
         postService.deletePost(postId);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @GetMapping("/public")
+    ApiResponse<PageResponse<PostResponse>> getPublicPosts(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size) {
+        return ApiResponse.<PageResponse<PostResponse>>builder()
+                .result(postService.getPublicPosts(page, size))
+                .build();
     }
 }

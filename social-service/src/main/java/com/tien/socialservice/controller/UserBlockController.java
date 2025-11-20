@@ -10,6 +10,8 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -35,10 +37,18 @@ public class UserBlockController {
     @GetMapping
     ApiResponse<PageResponse<UserBlockResponse>> getBlockedUsers(
             @RequestParam(value ="page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "size", required = false,defaultValue = "20") int size) {
+            @RequestParam(value = "size", required = false,defaultValue = "10") int size) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<PageResponse<UserBlockResponse>>builder()
                 .result(userBlockService.getBlockedUsers(userId, page, size))
+                .build();
+    }
+
+    @GetMapping("/ids")
+    ApiResponse<List<String>> getBlockedUserIds() {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ApiResponse.<List<String>>builder()
+                .result(userBlockService.getBlockedUserIds(userId))
                 .build();
     }
 }

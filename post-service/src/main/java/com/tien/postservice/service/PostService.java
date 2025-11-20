@@ -4,6 +4,7 @@ import com.tien.postservice.dto.PageResponse;
 import com.tien.postservice.dto.response.PostResponse;
 import com.tien.postservice.dto.response.UserProfileResponse;
 import com.tien.postservice.entity.Post;
+import com.tien.postservice.entity.PrivacyType;
 import com.tien.postservice.entity.SavedPost;
 import com.tien.postservice.entity.SharedPost;
 import com.tien.postservice.exception.AppException;
@@ -13,6 +14,7 @@ import com.tien.postservice.repository.PostRepository;
 import com.tien.postservice.repository.SavedPostRepository;
 import com.tien.postservice.repository.SharedPostRepository;
 import com.tien.postservice.repository.httpclient.ProfileClient;
+import com.tien.postservice.repository.httpclient.SocialClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -36,13 +40,14 @@ public class PostService {
     PostRepository postRepository;
     PostMapper postMapper;
     ProfileClient profileClient;
+    SocialClient socialClient;
     ImageUploadKafkaService imageUploadKafkaService;
 
     SavedPostRepository savedPostRepository;
 
     SharedPostRepository sharedPostRepository;
 
-    public PostResponse createPost(String content, List<MultipartFile> images) {
+    public PostResponse createPost(String content, List<MultipartFile> images, PrivacyType privacy) {
         String userId = getCurrentUserId();
 
         boolean hasContent = content != null && !content.trim().isEmpty();
@@ -52,9 +57,15 @@ public class PostService {
             throw new AppException(ErrorCode.POST_EMPTY);
         }
 
+        // Default privacy is PUBLIC if not specified
+        if (privacy == null) {
+            privacy = PrivacyType.PUBLIC;
+        }
+
         Post post = Post.builder()
                 .content(content)
                 .userId(userId)
+                .privacy(privacy)
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();
@@ -171,6 +182,11 @@ public class PostService {
         Post originalPost = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
+        // Kiểm tra quyền share: chỉ có thể share PUBLIC posts hoặc posts của chính mình
+        if (originalPost.getPrivacy() == PrivacyType.PRIVATE && !originalPost.getUserId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
         SharedPost sharedPost = SharedPost.builder()
                 .userId(userId)
                 .postId(postId)
@@ -185,6 +201,7 @@ public class PostService {
                 .userId(userId)
                 .content(content != null && !content.trim().isEmpty() ? content : null)
                 .imageUrls(originalPost.getImageUrls())
+                .privacy(PrivacyType.PUBLIC) // Shared posts are always public
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();
@@ -227,12 +244,19 @@ public class PostService {
     }
 
     public PostResponse getPostById(String postId) {
+        String userId = getCurrentUserId();
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        
+        // Kiểm tra quyền xem: nếu post là PRIVATE, chỉ owner mới xem được
+        if (post.getPrivacy() == PrivacyType.PRIVATE && !post.getUserId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
         return buildPostResponse(post, post.getUserId());
     }
 
-    public PostResponse updatePost(String postId, String content, List<MultipartFile> images) {
+    public PostResponse updatePost(String postId, String content, List<MultipartFile> images, PrivacyType privacy) {
         String userId = getCurrentUserId();
 
         Post post = postRepository.findById(postId)
@@ -253,6 +277,11 @@ public class PostService {
         // Cập nhật nội dung
         if (content != null) {
             post.setContent(content);
+        }
+
+        // Cập nhật privacy nếu có
+        if (privacy != null) {
+            post.setPrivacy(privacy);
         }
 
         // Cập nhật ảnh nếu có
@@ -292,13 +321,18 @@ public class PostService {
     }
 
     public PageResponse<PostResponse> getPostsByUserId(String userId, int page, int size) {
+        String currentUserId = getCurrentUserId();
         UserProfileResponse userProfile = getUserProfile(userId);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findAllByUserId(userId, pageable);
 
         String username = userProfile != null ? userProfile.getUsername() : null;
+        
+        // Nếu không phải owner, chỉ hiển thị PUBLIC posts
+        boolean isOwner = userId.equals(currentUserId);
         var postList = pageData.getContent().stream()
+                .filter(post -> isOwner || post.getPrivacy() == PrivacyType.PUBLIC)
                 .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
                     enrichPostResponse(postResponse, post, username);
@@ -355,8 +389,20 @@ public class PostService {
             throw new AppException(ErrorCode.INVALID_KEY);
         }
 
+        String userId = getCurrentUserId();
+        
+        // Lấy danh sách blocked users
+        Set<String> blockedUserIds = getBlockedUserIds(userId);
+        
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
-        var pageData = postRepository.findByContentContainingIgnoreCase(keyword.trim(), pageable);
+        
+        // Search trong PUBLIC posts và posts của chính user, loại trừ blocked users
+        List<String> excludedUserIds = List.copyOf(blockedUserIds);
+        var pageData = postRepository.searchPublicPosts(
+                userId, 
+                keyword.trim(), 
+                excludedUserIds, 
+                pageable);
 
         var postList = pageData.getContent().stream()
                 .map(post -> buildPostResponse(post, post.getUserId()))
@@ -369,6 +415,47 @@ public class PostService {
                 .totalElements(pageData.getTotalElements())
                 .data(postList)
                 .build();
+    }
+
+    public PageResponse<PostResponse> getPublicPosts(int page, int size) {
+        String userId = getCurrentUserId();
+        
+        // Lấy danh sách blocked users và tạo mutable Set
+        Set<String> blockedUserIds = new HashSet<>(getBlockedUserIds(userId));
+//        blockedUserIds.add(userId); // Loại trừ cả posts của chính user hiện tại
+
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        
+        // Chỉ lấy PUBLIC posts và loại trừ blocked users (bao gồm chính user)
+        List<String> excludedUserIds = List.copyOf(blockedUserIds);
+        var pageData = postRepository.findByPrivacyAndUserIdNotIn(
+                PrivacyType.PUBLIC, 
+                excludedUserIds, 
+                pageable);
+
+        var postList = pageData.getContent().stream()
+                .map(post -> buildPostResponse(post, post.getUserId()))
+                .toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
+    private Set<String> getBlockedUserIds(String userId) {
+        try {
+            var response = socialClient.getBlockedUserIds();
+            if (response != null && response.getResult() != null) {
+                return new HashSet<>(response.getResult());
+            }
+        } catch (Exception e) {
+            log.error("Error while getting blocked user IDs for userId: {}", userId, e);
+        }
+        return Set.of();
     }
 
     // Helper methods

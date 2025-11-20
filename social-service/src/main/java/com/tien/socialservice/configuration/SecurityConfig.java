@@ -33,7 +33,7 @@ public class SecurityConfig {
 
     // Các endpoint public không yêu cầu xác thực
     private final String[] PUBLIC_ENDPOINTS = {
-            "/internal/**"
+
     };
 
     CustomJwtDecoder customJwtDecoder;

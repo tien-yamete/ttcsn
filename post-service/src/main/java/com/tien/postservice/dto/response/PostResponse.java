@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 import java.time.Instant;
 import java.util.List;
 
+import com.tien.postservice.entity.PrivacyType;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,6 +20,7 @@ public class PostResponse {
     String username;
     String created;
     List<String> imageUrls;
+    PrivacyType privacy;
     Instant createdDate;
     Instant modifiedDate;
 }

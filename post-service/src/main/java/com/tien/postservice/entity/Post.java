@@ -22,6 +22,7 @@ public class Post {
     String userId;
     String content;
     List<String> imageUrls;
+    PrivacyType privacy;
     Instant createdDate;
     Instant modifiedDate;
 }

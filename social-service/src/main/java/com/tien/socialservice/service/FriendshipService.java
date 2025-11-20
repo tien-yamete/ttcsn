@@ -1,7 +1,9 @@
 package com.tien.socialservice.service;
 
 import com.tien.socialservice.dto.PageResponse;
+import com.tien.socialservice.dto.request.SearchUserRequest;
 import com.tien.socialservice.dto.response.FriendshipResponse;
+import com.tien.socialservice.dto.response.ProfileResponse;
 import com.tien.socialservice.entity.Friendship;
 import com.tien.socialservice.entity.FriendshipStatus;
 import com.tien.socialservice.exception.AppException;
@@ -9,6 +11,7 @@ import com.tien.socialservice.exception.ErrorCode;
 import com.tien.socialservice.mapper.FriendshipMapper;
 import com.tien.socialservice.repository.FriendshipRepository;
 import com.tien.socialservice.repository.UserBlockRepository;
+import com.tien.socialservice.repository.httpclient.ProfileClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -29,6 +34,8 @@ public class FriendshipService {
     UserBlockRepository userBlockRepository;
 
     FriendshipMapper friendshipMapper;
+
+    ProfileClient profileClient;
 
     @Transactional
     public FriendshipResponse sendFriendRequest(String userId, String friendId) {
@@ -138,5 +145,33 @@ public class FriendshipService {
                 .totalElements(pageData.getTotalElements())
                 .data(receivedFriendshipResponses.getContent())
                 .build();
+    }
+
+    public List<ProfileResponse> searchFriends(String userId, String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_KEYWORD);
+        }
+
+        try {
+            // Lấy danh sách blocked users
+            var blockedUserIds = new java.util.HashSet<>(userBlockRepository.findBlockedUserIds(userId));
+            blockedUserIds.add(userId); // Loại trừ chính user hiện tại
+
+            // Tìm kiếm users từ profile service
+            SearchUserRequest request = SearchUserRequest.builder()
+                    .keyword(keyword.trim())
+                    .build();
+
+            var response = profileClient.searchUsers(request);
+            var profiles = response.getResult();
+
+            // Filter ra những người không bị block
+            return profiles.stream()
+                    .filter(profile -> !blockedUserIds.contains(profile.getUserId()))
+                    .toList();
+        } catch (Exception e) {
+            log.error("Error while searching friends: {}", e.getMessage(), e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
     }
 }

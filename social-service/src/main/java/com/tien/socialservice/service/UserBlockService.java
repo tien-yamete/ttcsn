@@ -19,6 +19,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -93,5 +95,9 @@ public class UserBlockService {
                 .totalElements(PageData.getTotalElements())
                 .totalPages(PageData.getTotalPages())
                 .build();
+    }
+
+    public List<String> getBlockedUserIds(String userId) {
+        return userBlockRepository.findBlockedUserIds(userId);
     }
 }
