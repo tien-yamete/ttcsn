@@ -4,6 +4,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +19,14 @@ public class ProfileResponse {
     String lastName;
     LocalDate dob;
     String city;
+    String country;
+    String bio;
+    String phoneNumber;
+    String gender;
+    String website;
     String avatar;
     String backgroundImage;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }
 

@@ -1,6 +1,7 @@
 package com.tien.profileservice.dto.response;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -18,6 +19,13 @@ public class ProfileResponse {
     String lastName;
     LocalDate dob;
     String city;
+    String country;
+    String bio;
+    String phoneNumber;
+    String gender;
+    String website;
     String avatar;
     String backgroundImage;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }

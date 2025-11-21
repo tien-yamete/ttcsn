@@ -4,6 +4,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -12,12 +13,19 @@ import java.time.LocalDate;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserProfileResponse {
     String id;
+    String userId;
     String username;
-    String email;
     String firstName;
     String lastName;
     LocalDate dob;
     String city;
+    String country;
+    String bio;
+    String phoneNumber;
+    String gender;
+    String website;
     String avatar;
     String backgroundImage;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }

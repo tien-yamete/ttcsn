@@ -37,9 +37,17 @@
 - ✅ `username` - Username
 - ✅ `firstName` - First name
 - ✅ `lastName` - Last name
+- ✅ `dob` - Date of birth
+- ✅ `city` - City
+- ✅ `country` - Country
+- ✅ `bio` - Bio/Description
+- ✅ `phoneNumber` - Phone number
+- ✅ `gender` - Gender
+- ✅ `website` - Personal website
 - ✅ `avatar` - Avatar URL
 - ✅ `backgroundImage` - Background image URL
-- ✅ Other profile fields
+- ✅ `createdAt` - Created timestamp
+- ✅ `updatedAt` - Updated timestamp
 
 ### 📋 5. Integration
 

@@ -20,6 +20,9 @@ public interface ProfileRepository extends JpaRepository<Profile, String> {
            "LOWER(p.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(p.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(p.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(CONCAT(p.firstName, ' ', p.lastName)) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+           "LOWER(CONCAT(p.firstName, ' ', p.lastName)) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.bio) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.country) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.city) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Profile> searchByKeyword(@Param("keyword") String keyword);
 }

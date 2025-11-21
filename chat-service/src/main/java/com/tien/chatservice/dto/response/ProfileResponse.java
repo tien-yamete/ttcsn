@@ -1,5 +1,8 @@
 package com.tien.chatservice.dto.response;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,5 +21,15 @@ public class ProfileResponse {
     String username;
     String firstName;
     String lastName;
+    LocalDate dob;
+    String city;
+    String country;
+    String bio;
+    String phoneNumber;
+    String gender;
+    String website;
     String avatar;
+    String backgroundImage;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
 }
