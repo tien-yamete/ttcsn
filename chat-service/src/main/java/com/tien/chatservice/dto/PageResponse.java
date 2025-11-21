@@ -1,4 +1,4 @@
-package com.tien.chatservice.dto.response;
+package com.tien.chatservice.dto;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -7,16 +7,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+import java.util.Collections;
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProfileResponse {
-    String id;
-    String userId;
-    String username;
-    String firstName;
-    String lastName;
-    String avatar;
+public class PageResponse<T> {
+    int currentPage;
+    int totalPages;
+    int pageSize;
+    long totalElements;
+
+    @Builder.Default
+    List<T> data = Collections.emptyList();
 }
+

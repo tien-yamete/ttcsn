@@ -14,6 +14,8 @@ public interface ProfileRepository extends JpaRepository<Profile, String> {
 
     List<Profile> findByUsernameContainingIgnoreCase(String username);
 
+    List<Profile> findAllByUserIdIn(List<String> userIds);
+
     @Query("SELECT p FROM Profile p WHERE " +
            "LOWER(p.username) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(p.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

@@ -11,6 +11,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -28,6 +30,13 @@ public class InternalProfileController {
     ApiResponse<ProfileResponse> getProfile(@PathVariable String userId) {
         return ApiResponse.<ProfileResponse>builder()
                 .result(profileService.getProfile(userId))
+                .build();
+    }
+
+    @GetMapping("/internal/users/batch")
+    ApiResponse<List<ProfileResponse>> getProfiles(@RequestParam("userIds") List<String> userIds) {
+        return ApiResponse.<List<ProfileResponse>>builder()
+                .result(profileService.getProfiles(userIds))
                 .build();
     }
 }

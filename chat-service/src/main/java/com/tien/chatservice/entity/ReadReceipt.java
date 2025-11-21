@@ -1,6 +1,5 @@
 package com.tien.chatservice.entity;
 
-import com.tien.chatservice.constant.TypeConversation;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,31 +12,27 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
 import java.time.Instant;
-import java.util.List;
 
 @Setter
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "conversation")
+@Document(collection = "read_receipt")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Conversation {
+public class ReadReceipt {
     @MongoId
     String id;
 
-    TypeConversation typeConversation;
+    @Indexed
+    String messageId;
 
-    @Indexed(unique = true)
-    String participantsHash;
+    @Indexed
+    String conversationId;
 
-    List<ParticipantInfo> participants;
+    @Indexed
+    String userId;
 
-    String conversationName;
-
-    String conversationAvatar;
-
-    Instant createdDate;
-
-    Instant modifiedDate;
+    Instant readAt;
 }
+

@@ -1,6 +1,5 @@
-package com.tien.chatservice.dto.request;
+package com.tien.chatservice.dto.response;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,15 +7,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
+import java.time.Instant;
+
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChatMessageRequest {
-    @NotBlank
+public class ReadReceiptResponse {
+    String id;
+    String messageId;
     String conversationId;
-
-    @NotBlank
-    String message;
+    String userId;
+    Instant readAt;
 }
+

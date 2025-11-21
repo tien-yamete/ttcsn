@@ -1,6 +1,6 @@
 package com.tien.chatservice.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,10 +13,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChatMessageRequest {
-    @NotBlank
-    String conversationId;
+public class UpdateConversationRequest {
+    @Size(max = 100)
+    String conversationName;
 
-    @NotBlank
-    String message;
+    String conversationAvatar;
 }
+

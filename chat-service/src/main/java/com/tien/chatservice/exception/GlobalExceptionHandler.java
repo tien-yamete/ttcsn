@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse> handlingRuntimeException(Exception exception) {
-        log.error("Exception: ", exception);
+        log.error("Lỗi exception: ", exception);
         ApiResponse apiResponse = new ApiResponse();
 
         apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler {
 
             attributes = constraintViolation.getConstraintDescriptor().getAttributes();
 
-            log.info(attributes.toString());
+            log.info("Thuộc tính validation: {}", attributes.toString());
 
         } catch (IllegalArgumentException iae) {
             // Trường hợp enumkey không match ErrorCode nào

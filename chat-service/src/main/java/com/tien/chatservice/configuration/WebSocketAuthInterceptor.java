@@ -8,6 +8,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,7 +52,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         if (scopeClaim instanceof String) {
                             String scope = (String) scopeClaim;
                             if (!scope.isEmpty()) {
-                                grantedAuthorities = java.util.Arrays.stream(scope.split("\\s+"))
+                                grantedAuthorities = Arrays.stream(scope.split("\\s+"))
                                         .filter(s -> !s.isEmpty())
                                         .map(SimpleGrantedAuthority::new)
                                         .collect(Collectors.toList());
@@ -67,13 +69,19 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         accessor.setUser(authentication);
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         
-                        log.info("WebSocket connection authenticated for user: {}", jwt.getSubject());
+                        log.info("Kết nối WebSocket đã được xác thực cho user: {}", jwt.getSubject());
                     } catch (Exception e) {
-                        log.error("Failed to authenticate WebSocket connection: {}", e.getMessage());
+                        log.error("Xác thực kết nối WebSocket thất bại: {}", e.getMessage());
+                        // Reject connection if authentication fails
+                        throw new MessageDeliveryException("Authentication failed: " + e.getMessage());
                     }
+                } else {
+                    log.warn("Cố gắng kết nối WebSocket với định dạng Authorization header không hợp lệ");
+                    throw new MessageDeliveryException("Invalid Authorization header format");
                 }
             } else {
-                log.warn("WebSocket connection attempt without Authorization header");
+                log.warn("Cố gắng kết nối WebSocket mà không có Authorization header");
+                throw new MessageDeliveryException("Authorization header is required");
             }
         }
         

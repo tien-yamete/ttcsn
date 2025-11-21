@@ -13,10 +13,8 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChatMessageRequest {
-    @NotBlank
-    String conversationId;
-
+public class UpdateMessageRequest {
     @NotBlank
     String message;
 }
+

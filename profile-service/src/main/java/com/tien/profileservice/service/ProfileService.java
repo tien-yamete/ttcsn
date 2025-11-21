@@ -147,4 +147,14 @@ public class ProfileService {
                 .map(profileMapper::toProfileResponse)
                 .toList();
     }
+
+    public List<ProfileResponse> getProfiles(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        List<Profile> profiles = profileRepository.findAllByUserIdIn(userIds);
+        return profiles.stream()
+                .map(profileMapper::toProfileResponse)
+                .toList();
+    }
 }

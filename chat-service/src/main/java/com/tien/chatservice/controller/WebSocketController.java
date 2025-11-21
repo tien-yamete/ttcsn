@@ -1,9 +1,11 @@
 package com.tien.chatservice.controller;
 
+import com.tien.chatservice.constant.ChatNotificationType;
 import com.tien.chatservice.dto.request.ChatMessageRequest;
 import com.tien.chatservice.dto.request.ChatNotification;
 import com.tien.chatservice.dto.request.TypingNotification;
 import com.tien.chatservice.dto.response.ChatMessageResponse;
+import com.tien.chatservice.repository.ConversationRepository;
 import com.tien.chatservice.service.ChatMessageService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 
 @Slf4j
@@ -22,39 +25,127 @@ public class WebSocketController {
 
     ChatMessageService chatMessageService;
     SimpMessagingTemplate messagingTemplate;
+    ConversationRepository conversationRepository;
 
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessageRequest request) {
-        log.info("Received message via WebSocket: conversationId={}, message={}", 
-                request.getConversationId(), request.getMessage());
-        
-        ChatMessageResponse response = chatMessageService.create(request);
-        
-        messagingTemplate.convertAndSend(
-                "/topic/conversation/" + request.getConversationId(), 
-                response
-        );
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            log.info("Nhận tin nhắn qua WebSocket từ user {}: conversationId={}, message={}", 
+                    userId, request.getConversationId(), request.getMessage());
+            
+            ChatMessageResponse response = chatMessageService.create(request);
+            
+            messagingTemplate.convertAndSend(
+                    "/topic/conversation/" + request.getConversationId(), 
+                    response
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi tin nhắn qua WebSocket: {}", e.getMessage(), e);
+            // Send error notification to sender
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/errors",
+                    "Gửi tin nhắn thất bại: " + e.getMessage()
+            );
+        }
     }
 
     @MessageMapping("/chat.typing")
     public void handleTyping(@Payload TypingNotification notification) {
-        log.debug("User {} is typing in conversation {}", 
-                notification.getUserId(), notification.getConversationId());
-        
-        messagingTemplate.convertAndSend(
-                "/topic/conversation/" + notification.getConversationId() + "/typing",
-                notification
-        );
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            
+            // Validate user is participant
+            boolean isParticipant = conversationRepository.findById(notification.getConversationId())
+                    .map(conv -> conv.getParticipants().stream()
+                            .anyMatch(p -> p.getUserId().equals(userId)))
+                    .orElse(false);
+            
+            if (!isParticipant) {
+                log.warn("User {} cố gắng gửi typing notification cho conversation {} mà họ không tham gia", 
+                        userId, notification.getConversationId());
+                return;
+            }
+            
+            // Override userId from request with authenticated user
+            notification.setUserId(userId);
+            
+            log.debug("User {} đang gõ trong conversation {}", userId, notification.getConversationId());
+            
+            messagingTemplate.convertAndSend(
+                    "/topic/conversation/" + notification.getConversationId() + "/typing",
+                    notification
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý typing notification: {}", e.getMessage(), e);
+        }
     }
 
     @MessageMapping("/chat.addUser")
     public void handleUserJoin(@Payload ChatNotification notification) {
-        log.info("User {} joined conversation {}", 
-                notification.getSender(), notification.getConversationId());
-        
-        messagingTemplate.convertAndSend(
-                "/topic/conversation/" + notification.getConversationId(),
-                notification
-        );
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            
+            // Validate user is participant
+            boolean isParticipant = conversationRepository.findById(notification.getConversationId())
+                    .map(conv -> conv.getParticipants().stream()
+                            .anyMatch(p -> p.getUserId().equals(userId)))
+                    .orElse(false);
+            
+            if (!isParticipant) {
+                log.warn("User {} cố gắng tham gia conversation {} mà họ không phải thành viên", 
+                        userId, notification.getConversationId());
+                return;
+            }
+            
+            // Override sender from request with authenticated user
+            notification.setSender(userId);
+            if (notification.getType() == null) {
+                notification.setType(ChatNotificationType.JOIN);
+            }
+            
+            log.info("User {} đã tham gia conversation {}", userId, notification.getConversationId());
+            
+            messagingTemplate.convertAndSend(
+                    "/topic/conversation/" + notification.getConversationId(),
+                    notification
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý user join notification: {}", e.getMessage(), e);
+        }
+    }
+
+    @MessageMapping("/chat.removeUser")
+    public void handleUserLeave(@Payload ChatNotification notification) {
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            
+            // Validate user is participant
+            boolean isParticipant = conversationRepository.findById(notification.getConversationId())
+                    .map(conv -> conv.getParticipants().stream()
+                            .anyMatch(p -> p.getUserId().equals(userId)))
+                    .orElse(false);
+            
+            if (!isParticipant) {
+                log.warn("User {} cố gắng rời khỏi conversation {} mà họ không tham gia", 
+                        userId, notification.getConversationId());
+                return;
+            }
+            
+            // Override sender from request with authenticated user
+            notification.setSender(userId);
+            notification.setType(ChatNotificationType.LEAVE);
+            
+            log.info("User {} đã rời khỏi conversation {}", userId, notification.getConversationId());
+            
+            messagingTemplate.convertAndSend(
+                    "/topic/conversation/" + notification.getConversationId(),
+                    notification
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý user leave notification: {}", e.getMessage(), e);
+        }
     }
 }
