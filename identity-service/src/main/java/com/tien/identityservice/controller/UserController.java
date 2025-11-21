@@ -2,10 +2,12 @@ package com.tien.identityservice.controller;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import com.tien.identityservice.dto.ApiResponse;
-import com.tien.identityservice.dto.request.*;
+import com.tien.identityservice.dto.request.ChangePasswordRequest;
+import com.tien.identityservice.dto.request.UserUpdateRequest;
 import com.tien.identityservice.dto.response.UserResponse;
 import com.tien.identityservice.service.UserService;
 
@@ -21,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * - GET    /users/myInfo       : Lấy thông tin user hiện đang đăng nhập
  * - PUT    /users/{userId}     : Cập nhật thông tin của user theo ID (chỉ ADMIN)
  * - DELETE /users/{userId}     : Xóa user theo ID (chỉ ADMIN)
+ * - PUT    /users/change-password : Đổi mật khẩu cho user hiện tại
  */
 @Slf4j
 @RestController
@@ -63,5 +66,13 @@ public class UserController {
     ApiResponse<String> deleteUser(@PathVariable("userId") String userId) {
         userService.deleteUser(userId);
         return ApiResponse.<String>builder().result("User has been deleted").build();
+    }
+
+    @PutMapping("/change-password")
+    ApiResponse<Void> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        userService.changePassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Đổi mật khẩu thành công")
+                .build();
     }
 }

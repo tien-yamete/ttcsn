@@ -28,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
  * - POST /auth/introspect: Kiểm tra token có hợp lệ không
  * - POST /auth/refresh: Làm mới token
  * - POST /auth/logout: Đăng xuất (revoke token)
+ * - POST /auth/forgot-password: Quên mật khẩu (gửi OTP)
+ * - POST /auth/reset-password: Reset mật khẩu với OTP
  */
 @Slf4j
 @RestController
@@ -88,5 +90,23 @@ public class AuthenticationController {
     ApiResponse<Void> logout(@RequestBody LogoutRequest request) throws ParseException, JOSEException {
         authenticationService.logout(request);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/forgot-password")
+    ApiResponse<Void> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+        log.info("Yêu cầu quên mật khẩu cho email: {}", request.getEmail());
+        authenticationService.forgotPassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra email.")
+                .build();
+    }
+
+    @PostMapping("/reset-password")
+    ApiResponse<Void> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
+        log.info("Reset password cho email: {}", request.getEmail());
+        authenticationService.resetPassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập với mật khẩu mới.")
+                .build();
     }
 }

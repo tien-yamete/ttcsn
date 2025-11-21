@@ -28,6 +28,7 @@ public enum ErrorCode {
     UNAUTHORIZED(1202, "You do not have permission", HttpStatus.FORBIDDEN),
     INVALID_PASSWORD(1203, "Password must be at least {min} characters", HttpStatus.BAD_REQUEST),
     USERNAME_INVALID(1204, "Username must be at least {min} characters", HttpStatus.BAD_REQUEST),
+    INVALID_OLD_PASSWORD(1205, "Mật khẩu cũ không đúng", HttpStatus.BAD_REQUEST),
 
     // ==========================
     // 🔹 Validation

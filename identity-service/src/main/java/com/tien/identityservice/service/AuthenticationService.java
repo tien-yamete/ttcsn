@@ -191,4 +191,56 @@ public class AuthenticationService {
 
         return AuthenticationResponse.builder().token(token).authenticated(true).build();
     }
+
+    // Gửi OTP để reset password (forgot password)
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Kiểm tra user đã verify email chưa
+        if (!user.isEmailVerified()) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+
+        // Kiểm tra tần suất gửi OTP
+        otpService.checkOtpFrequency(user, OtpType.RESET_PASSWORD);
+        otpService.deactivateOldOtps(user.getId(), OtpType.RESET_PASSWORD);
+
+        // Tạo OTP mới
+        UserOtp newOtp = otpService.createOtp(user, OtpType.RESET_PASSWORD, 15);
+
+        // Gửi email với OTP
+        notificationService.sendEmail(
+                user.getEmail(),
+                "Reset Password - Friendify",
+                EmailTemplate.resetPasswordEmail(user.getUsername(), newOtp.getOtpCode()));
+
+        log.info("Đã gửi OTP reset password cho user: {}", user.getEmail());
+    }
+
+    // Reset password với OTP
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Kiểm tra user đã verify email chưa
+        if (!user.isEmailVerified()) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+
+        // Tìm và validate OTP
+        UserOtp userOtp = otpService.findLatestOtp(user, OtpType.RESET_PASSWORD);
+        otpService.validateOtp(userOtp, request.getOtpCode());
+
+        // Cập nhật mật khẩu mới
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Đánh dấu OTP đã sử dụng
+        otpService.markOtpAsUsed(userOtp);
+
+        log.info("User {} đã reset password thành công", user.getEmail());
+    }
 }
