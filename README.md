@@ -139,8 +139,12 @@ docker-compose up --build
 
 ### Communication
 - **Real-time Chat**: WebSocket-based messaging with:
-  - Direct messaging (1-on-1 chat)
-  - Group chat with multiple participants
+  - **Direct messaging (1-on-1 chat)**: Automatically created when chatting with 1 person
+    - Both participants have equal admin rights
+  - **Group chat**: Automatically created when chatting with 2+ people
+    - Creator is admin, can promote/demote other admins
+    - Admin-only features: update group info, add/remove members
+  - **Auto-detection**: Conversation type (DIRECT/GROUP) is automatically determined by participant count
   - Read receipts and unread message counts
   - Typing indicators
   - Message edit/delete capabilities

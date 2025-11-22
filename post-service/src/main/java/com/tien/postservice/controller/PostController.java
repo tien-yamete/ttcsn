@@ -4,6 +4,7 @@ import com.tien.postservice.dto.ApiResponse;
 import com.tien.postservice.dto.PageResponse;
 import com.tien.postservice.dto.response.PostResponse;
 import com.tien.postservice.entity.PrivacyType;
+import com.tien.postservice.repository.PostRepository;
 import com.tien.postservice.service.PostService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostController {
     PostService postService;
+    PostRepository postRepository;
 
     @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ApiResponse<PostResponse> createPost(
@@ -166,6 +168,16 @@ public class PostController {
             @RequestParam(value = "size", required = false, defaultValue = "10") int size) {
         return ApiResponse.<PageResponse<PostResponse>>builder()
                 .result(postService.getPublicPosts(page, size))
+                .build();
+    }
+
+    @GetMapping("/internal/posts/{postId}/exists")
+    ApiResponse<Boolean> checkPostExists(@PathVariable String postId) {
+        boolean exists = postRepository.existsById(postId);
+        return ApiResponse.<Boolean>builder()
+                .code(200)
+                .message("Check post exists")
+                .result(exists)
                 .build();
     }
 }

@@ -47,6 +47,23 @@ public class ProfileService {
     public UserProfileResponse createProfileFromCreation(UserCreationRequest request, String userId) {
         ProfileCreationRequest profileRequest = profileMapper.toProfileCreationRequest(request);
         profileRequest.setUserId(userId);
+        
+        // Đảm bảo username được set (MapStruct có thể không map nếu UserCreationRequest chỉ có @Getter)
+        if (profileRequest.getUsername() == null || profileRequest.getUsername().isEmpty()) {
+            profileRequest.setUsername(request.getUsername());
+        }
+        
+        // Đảm bảo firstName và lastName được set vào profile
+        if (request.getFirstName() != null && !request.getFirstName().trim().isEmpty()) {
+            profileRequest.setFirstName(request.getFirstName().trim());
+        }
+        if (request.getLastName() != null && !request.getLastName().trim().isEmpty()) {
+            profileRequest.setLastName(request.getLastName().trim());
+        }
+        
+        log.info("Creating profile for userId: {}, firstName: {}, lastName: {}, username: {}", 
+                userId, profileRequest.getFirstName(), profileRequest.getLastName(), profileRequest.getUsername());
+        
         return createProfile(profileRequest);
     }
 }

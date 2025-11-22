@@ -13,7 +13,9 @@ public enum ErrorCode {
     UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
     CONVERSATION_NOT_FOUND(1009, "Chat conversation not found", HttpStatus.NOT_FOUND),
     MESSAGE_NOT_FOUND(1010, "Message not found", HttpStatus.NOT_FOUND),
-    INVALID_CONVERSATION_TYPE(1011, "Invalid conversation type for this operation", HttpStatus.BAD_REQUEST);
+    INVALID_CONVERSATION_TYPE(1011, "Invalid conversation type for this operation", HttpStatus.BAD_REQUEST),
+    PARTICIPANT_ALREADY_EXISTS(1012, "Participant already exists in conversation", HttpStatus.BAD_REQUEST),
+    DUPLICATE_PARTICIPANT_IDS(1013, "Duplicate participant IDs in request", HttpStatus.BAD_REQUEST);
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
         this.code = code;

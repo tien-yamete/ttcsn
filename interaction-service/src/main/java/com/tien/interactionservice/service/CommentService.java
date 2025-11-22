@@ -156,14 +156,34 @@ public class CommentService {
         CommentResponse response = commentMapper.toCommentResponse(comment);
         
         // Enrich các field không thể map
-        response.setUsername(profile != null ? profile.getUsername() : null);
-        response.setUserAvatar(profile != null ? profile.getAvatar() : null);
+        // Hiển thị họ + tên thay vì username
+        if (profile != null) {
+            String displayName = getDisplayName(profile.getFirstName(), profile.getLastName(), profile.getUsername());
+            response.setUsername(displayName);
+            response.setUserAvatar(profile.getAvatar());
+        } else {
+            response.setUsername(null);
+            response.setUserAvatar(null);
+        }
         response.setReplies(new ArrayList<>());
         response.setReplyCount(0);
         response.setLikeCount((int) likeCount);
         response.setIsLiked(isLiked);
         
         return response;
+    }
+
+    private String getDisplayName(String firstName, String lastName, String username) {
+        if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
+            return (firstName.trim() + " " + lastName.trim()).trim();
+        } else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        } else if (lastName != null && !lastName.trim().isEmpty()) {
+            return lastName.trim();
+        } else {
+            // Fallback to username if no first/last name
+            return username != null ? username : "";
+        }
     }
 
     private void validatePostExists(String postId) {

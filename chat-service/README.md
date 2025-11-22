@@ -5,16 +5,20 @@
 ### 📋 1. Conversation Management
 
 #### ✅ Chat 2 người (DIRECT)
-- ✅ Tạo conversation DIRECT với 1 participant khác
+- ✅ Tự động tạo conversation DIRECT khi có 1 participant khác (tổng 2 người)
 - ✅ Tự động tìm conversation đã tồn tại (dựa trên participantsHash)
 - ✅ Hiển thị tên/avatar của người kia
+- ✅ **Tất cả participants đều là ADMIN** (cả hai có quyền như nhau)
 - ✅ Xóa conversation khi user leave
+- ✅ Cả hai đều có quyền update và delete conversation
 
 #### ✅ Group Chat (GROUP)
-- ✅ Tạo conversation GROUP với nhiều participants
-- ✅ Thêm participants vào group
-- ✅ Xóa participants khỏi group
-- ✅ Update tên/avatar của group
+- ✅ Tự động tạo conversation GROUP khi có 2+ participants khác (tổng 3+ người)
+- ✅ **Chỉ creator là ADMIN**, các thành viên khác là MEMBER
+- ✅ Thêm participants vào group (chỉ ADMIN)
+- ✅ Xóa participants khỏi group (chỉ ADMIN)
+- ✅ Update tên/avatar của group (chỉ ADMIN)
+- ✅ Promote/demote admin (chỉ ADMIN, chỉ áp dụng với GROUP)
 - ✅ User có thể leave group
 - ✅ Tự động xóa group nếu chỉ còn 1 người
 
@@ -29,7 +33,9 @@
 | Xóa | DELETE | `/conversations/{id}` | Xóa conversation |
 | Thêm thành viên | POST | `/conversations/{id}/participants` | Chỉ GROUP: thêm participants |
 | Xóa thành viên | DELETE | `/conversations/{id}/participants/{participantId}` | Chỉ GROUP: xóa participant |
-| Rời khỏi | POST | `/conversations/{id}/leave` | DIRECT: xóa, GROUP: remove user |
+| Rời khỏi | POST | `/conversations/{id}/leave` | DIRECT: xóa conversation, GROUP: remove user |
+| Promote admin | POST | `/conversations/{id}/admins` | Chỉ GROUP: thăng cấp thành viên lên admin |
+| Demote admin | DELETE | `/conversations/{id}/admins/{participantId}` | Chỉ GROUP: hạ cấp admin xuống member |
 
 ### 📋 3. Chat Message APIs
 
@@ -66,19 +72,33 @@
 - ✅ Validate user là participant trước khi truy cập
 - ✅ Validate chỉ sender mới sửa/xóa được message
 - ✅ Validate chỉ GROUP mới có thể update/add/remove participants
-- ✅ Validate DIRECT chỉ có 2 người
+- ✅ Validate chỉ GROUP mới có thể promote/demote admin
+- ✅ **Tự động xác định loại conversation**: 1 người = DIRECT, 2+ người = GROUP
+- ✅ **Role-based permissions**:
+  - DIRECT: Tất cả participants đều là ADMIN (có quyền như nhau)
+  - GROUP: Chỉ ADMIN mới có quyền quản lý (update, add/remove participants, promote/demote)
 
 ### 📋 6. Data Models
 
 #### Conversation Entity
 - ✅ `id` - Unique identifier
-- ✅ `typeConversation` - DIRECT hoặc GROUP
+- ✅ `typeConversation` - DIRECT hoặc GROUP (tự động xác định)
 - ✅ `participantsHash` - Hash để tìm conversation đã tồn tại
-- ✅ `participants` - Danh sách participants với đầy đủ thông tin
+- ✅ `participants` - Danh sách participants với đầy đủ thông tin và role (ADMIN/MEMBER)
 - ✅ `conversationName` - Tên conversation (GROUP) hoặc tên người kia (DIRECT)
 - ✅ `conversationAvatar` - Avatar conversation (GROUP) hoặc avatar người kia (DIRECT)
 - ✅ `createdDate` - Ngày tạo
 - ✅ `modifiedDate` - Ngày sửa đổi
+
+#### ParticipantInfo Entity
+- ✅ `userId` - ID của user
+- ✅ `username` - Username
+- ✅ `firstName` - Tên
+- ✅ `lastName` - Họ
+- ✅ `avatar` - Avatar URL
+- ✅ `role` - ADMIN hoặc MEMBER
+  - **DIRECT**: Tất cả đều là ADMIN
+  - **GROUP**: Creator là ADMIN, các thành viên khác là MEMBER
 
 #### ChatMessage Entity
 - ✅ `id` - Unique identifier
@@ -105,35 +125,56 @@
 
 ### ⚠️ Lưu ý
 
-1. **Tạo DIRECT conversation**: 
-   - Chỉ cần 1 participant trong `participantIds`
-   - System tự động thêm current user
-   - Tự động tìm conversation đã tồn tại
+1. **Tạo Conversation (Tự động xác định loại)**:
+   - Chỉ cần truyền `participantIds` (danh sách người tham gia, không bao gồm người tạo)
+   - System tự động xác định loại:
+     - **1 người** → DIRECT conversation (tổng 2 người)
+     - **2+ người** → GROUP conversation (tổng 3+ người)
+   - System tự động thêm current user vào participants
+   - Tự động tìm conversation đã tồn tại (dựa trên participantsHash)
 
-2. **Tạo GROUP conversation**:
-   - Có thể có nhiều participants trong `participantIds`
-   - System tự động thêm current user
-   - Mỗi group là unique (dựa trên participantsHash)
+2. **Role Management**:
+   - **DIRECT conversation**:
+     - Tất cả participants đều có role **ADMIN**
+     - Cả hai đều có quyền như nhau (update, delete)
+     - Không có promote/demote admin
+   - **GROUP conversation**:
+     - Creator (người tạo) có role **ADMIN**
+     - Các thành viên khác có role **MEMBER**
+     - Chỉ ADMIN mới có quyền:
+       - Update tên/avatar của group
+       - Thêm/xóa participants
+       - Promote/demote admin
+       - Xóa conversation
 
 3. **ParticipantsHash**:
    - DIRECT: Hash từ 2 user IDs (sorted)
    - GROUP: Hash từ tất cả user IDs (sorted)
    - Dùng để tìm conversation đã tồn tại
+   - Đảm bảo không tạo duplicate conversation
 
 4. **Validation**:
-   - DIRECT: Chỉ có thể có 2 người
-   - GROUP: Có thể có nhiều người
+   - DIRECT: Tự động khi có 1 participant (tổng 2 người)
+   - GROUP: Tự động khi có 2+ participants (tổng 3+ người)
    - Chỉ GROUP mới có thể update name/avatar, add/remove participants
+   - Chỉ GROUP mới có thể promote/demote admin
+   - DIRECT: Tất cả đều có quyền như nhau (vì đều là ADMIN)
 
 ## ✅ Kết luận
 
 **Chat Service đã đầy đủ chức năng cho:**
-- ✅ Chat 2 người (DIRECT)
-- ✅ Group chat (GROUP)
+- ✅ Chat 2 người (DIRECT) - Tự động xác định khi có 1 participant
+- ✅ Group chat (GROUP) - Tự động xác định khi có 2+ participants
+- ✅ Role-based permissions (ADMIN/MEMBER)
+  - DIRECT: Tất cả đều là ADMIN
+  - GROUP: Chỉ creator là ADMIN, có thể promote/demote
 - ✅ Tất cả các API cần thiết
 - ✅ WebSocket real-time
 - ✅ Read receipts & unread count
 - ✅ Security & validation
 
-**Code đã được sửa để hỗ trợ đầy đủ GROUP chat với nhiều participants!**
+**Code đã được tối ưu với:**
+- ✅ Tự động xác định loại conversation (DIRECT/GROUP)
+- ✅ Role management thông minh (ADMIN chỉ áp dụng với GROUP)
+- ✅ Quyền hạn rõ ràng cho từng loại conversation
 

@@ -7,6 +7,7 @@ import com.tien.chatservice.dto.request.UpdateMessageRequest;
 import com.tien.chatservice.dto.response.ChatMessageResponse;
 import com.tien.chatservice.dto.response.ReadReceiptResponse;
 import com.tien.chatservice.service.ChatMessageService;
+import com.tien.chatservice.service.ReadReceiptService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatMessageController {
     ChatMessageService chatMessageService;
+    ReadReceiptService readReceiptService;
 
     @PostMapping("/create")
     ApiResponse<ChatMessageResponse> create(
@@ -81,7 +83,7 @@ public class ChatMessageController {
     @PostMapping("/{id}/read")
     ApiResponse<ReadReceiptResponse> markAsRead(@PathVariable String id) {
         return ApiResponse.<ReadReceiptResponse>builder()
-                .result(chatMessageService.markAsRead(id))
+                .result(readReceiptService.markAsRead(id))
                 .build();
     }
 
@@ -89,14 +91,14 @@ public class ChatMessageController {
     ApiResponse<List<ReadReceiptResponse>> getReadReceipts(
             @PathVariable String id) {
         return ApiResponse.<List<ReadReceiptResponse>>builder()
-                .result(chatMessageService.getReadReceipts(id))
+                .result(readReceiptService.getReadReceipts(id))
                 .build();
     }
 
     @GetMapping("/unread-count")
     ApiResponse<Long> getUnreadCount(@RequestParam("conversationId") String conversationId) {
         return ApiResponse.<Long>builder()
-                .result(chatMessageService.getUnreadCount(conversationId))
+                .result(readReceiptService.getUnreadCount(conversationId))
                 .build();
     }
 }

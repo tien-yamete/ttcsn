@@ -28,7 +28,8 @@ public class DateTimeFormatter {
         var strategy = strategyMap.entrySet()
                 .stream()
                 .filter(longFunctionEntry -> elapseSeconds < longFunctionEntry.getKey())
-                .findFirst().get();
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No strategy found for elapsed seconds: " + elapseSeconds));
         return strategy.getValue().apply(instant);
     }
 

@@ -8,3 +8,4 @@ import org.mapstruct.Mapper;
 public interface PostMapper {
     PostResponse toPostResponse(Post post);
 }
+

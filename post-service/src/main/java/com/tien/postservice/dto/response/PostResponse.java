@@ -18,9 +18,17 @@ public class PostResponse {
     String content;
     String userId;
     String username;
+    String userAvatar;
     String created;
     List<String> imageUrls;
     PrivacyType privacy;
     Instant createdDate;
     Instant modifiedDate;
+    
+    // Interaction stats
+    Integer likeCount;
+    Integer commentCount;
+    Boolean isLiked;
+    Boolean isSaved;
+    Long shareCount;
 }

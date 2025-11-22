@@ -1,6 +1,8 @@
 package com.tien.chatservice.service;
 
+import com.tien.chatservice.constant.ParticipantRole;
 import com.tien.chatservice.constant.TypeConversation;
+import com.tien.chatservice.dto.request.AddAdminRequest;
 import com.tien.chatservice.dto.request.AddParticipantRequest;
 import com.tien.chatservice.dto.request.ConversationRequest;
 import com.tien.chatservice.dto.request.UpdateConversationRequest;
@@ -23,8 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
@@ -33,209 +37,112 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ConversationService {
+    
+    static String PARTICIPANT_HASH_DELIMITER = "_";
+    static int DIRECT_CONVERSATION_PARTICIPANT_COUNT = 1;
+    static int MIN_GROUP_PARTICIPANTS_AFTER_LEAVE = 2;
+
     ConversationRepository conversationRepository;
     ProfileClient profileClient;
 
     ConversationMapper conversationMapper;
 
     public List<ConversationResponse> myConversations() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = getCurrentUserId();
         List<Conversation> conversations = conversationRepository.findAllByParticipantIdsContains(userId);
-
         return conversations.stream().map(this::toConversationResponse).toList();
     }
 
     public ConversationResponse create(ConversationRequest request) {
-        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserId = getCurrentUserId();
+        validateConversationRequest(request);
+
+        ProfileResponse currentUserInfo = getProfileOrThrow(currentUserId);
+        List<String> otherParticipantIds = getOtherParticipantIds(request.getParticipantIds(), currentUserId);
+        List<ProfileResponse> participantProfiles = getProfilesOrThrow(otherParticipantIds);
         
-        // Validate conversation type
-        if (request.getTypeConversation() == null) {
-            throw new AppException(ErrorCode.INVALID_CONVERSATION_TYPE);
-        }
+        // Tự động xác định loại conversation: 1 người khác = DIRECT, nhiều hơn = GROUP
+        TypeConversation typeConversation = (otherParticipantIds.size() == 1) 
+                ? TypeConversation.DIRECT 
+                : TypeConversation.GROUP;
         
-        // For DIRECT: must have exactly 1 participant (plus current user = 2 total)
-        if (request.getTypeConversation() == TypeConversation.DIRECT) {
-            if (request.getParticipantIds().size() != 1) {
-                throw new AppException(ErrorCode.INVALID_CONVERSATION_TYPE);
-            }
-        }
+        List<ParticipantInfo> participantInfos = buildParticipantInfos(currentUserInfo, participantProfiles, typeConversation, true);
+        String userIdHash = generateParticipantHash(participantInfos);
         
-        // For GROUP: must have at least 1 participant (plus current user = 2+ total)
-        if (request.getTypeConversation() == TypeConversation.GROUP) {
-            if (request.getParticipantIds().isEmpty()) {
-                throw new AppException(ErrorCode.INVALID_CONVERSATION_TYPE);
-            }
-        }
-        
-        // Get current user info
-        var userInfoResponse = profileClient.getProfile(currentUserId);
-        if (Objects.isNull(userInfoResponse)) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
-        var userInfo = userInfoResponse.getResult();
-        
-        // Get all participant profiles
-        List<String> allParticipantIds = new ArrayList<>(request.getParticipantIds());
-        // Remove current user from list if present
-        allParticipantIds.remove(currentUserId);
-        
-        var profilesResponse = profileClient.getProfiles(allParticipantIds);
-        if (profilesResponse == null || profilesResponse.getResult() == null || profilesResponse.getResult().isEmpty()) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
-        
-        List<ProfileResponse> participantProfiles = profilesResponse.getResult();
-        
-        // Build participant list
-        List<ParticipantInfo> participantInfos = new ArrayList<>();
-        
-        // Add current user
-        participantInfos.add(ParticipantInfo.builder()
-                .userId(userInfo.getUserId())
-                .username(userInfo.getUsername())
-                .firstName(userInfo.getFirstName())
-                .lastName(userInfo.getLastName())
-                .avatar(userInfo.getAvatar())
-                .build());
-        
-        // Add other participants
-        participantInfos.addAll(participantProfiles.stream()
-                .map(profile -> ParticipantInfo.builder()
-                        .userId(profile.getUserId())
-                        .username(profile.getUsername())
-                        .firstName(profile.getFirstName())
-                        .lastName(profile.getLastName())
-                        .avatar(profile.getAvatar())
-                        .build())
-                .collect(Collectors.toList()));
-        
-        // Generate hash for DIRECT conversations (sorted user IDs)
-        // For GROUP, use a unique hash based on all participants
-        String userIdHash;
-        if (request.getTypeConversation() == TypeConversation.DIRECT) {
-            var sortedIds = participantInfos.stream()
-                    .map(ParticipantInfo::getUserId)
-                    .sorted()
-                    .toList();
-            userIdHash = generateParticipantHash(sortedIds);
-        } else {
-            // For GROUP, create hash from all participant IDs sorted
-            var sortedIds = participantInfos.stream()
-                    .map(ParticipantInfo::getUserId)
-                    .sorted()
-                    .toList();
-            userIdHash = generateParticipantHash(sortedIds);
-        }
-        
-        // For DIRECT: check if conversation already exists
-        // For GROUP: always create new (or check if exact same participants exist)
-        var conversation = conversationRepository.findByParticipantsHash(userIdHash)
-                .filter(conv -> conv.getTypeConversation() == request.getTypeConversation())
-                .orElseGet(() -> {
-                    Conversation newConversation = Conversation.builder()
-                            .typeConversation(request.getTypeConversation())
-                            .participants(participantInfos)
-                            .participantsHash(userIdHash)
-                            .createdDate(Instant.now())
-                            .modifiedDate(Instant.now())
-                            .build();
-                    return conversationRepository.save(newConversation);
-                });
-        
+        Conversation conversation = findOrCreateConversation(typeConversation, participantInfos, userIdHash);
         return toConversationResponse(conversation);
     }
 
     public ConversationResponse getById(String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
         validateParticipantAccess(conversation, userId);
-
         return toConversationResponse(conversation);
     }
 
     @Transactional
-    public ConversationResponse update(String conversationId, UpdateConversationRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-
-        // Only allow update for GROUP conversations
-        if (conversation.getTypeConversation() != TypeConversation.GROUP) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
+    public ConversationResponse updateConversation(String conversationId, UpdateConversationRequest request) {
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
+        
         validateParticipantAccess(conversation, userId);
-
-        if (request.getConversationName() != null && !request.getConversationName().trim().isEmpty()) {
-            conversation.setConversationName(request.getConversationName());
+        
+        // DIRECT conversation: tất cả đều là admin nên có thể update
+        // GROUP conversation: chỉ admin mới có thể update
+        if (conversation.getTypeConversation() == TypeConversation.GROUP) {
+            validateAdminPermission(conversation, userId);
         }
-        if (request.getConversationAvatar() != null) {
-            conversation.setConversationAvatar(request.getConversationAvatar());
-        }
-        conversation.setModifiedDate(Instant.now());
 
+        updateConversationDetails(conversation, request);
         conversation = conversationRepository.save(conversation);
         return toConversationResponse(conversation);
     }
 
     @Transactional
-    public void delete(String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-
+    public void deleteConversation(String conversationId) {
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
         validateParticipantAccess(conversation, userId);
-
+        
+        // Chỉ admin mới có thể xóa GROUP conversation
+        if (conversation.getTypeConversation() == TypeConversation.GROUP) {
+            validateAdminPermission(conversation, userId);
+        }
+        
         conversationRepository.delete(conversation);
     }
 
     @Transactional
     public ConversationResponse addParticipants(String conversationId, AddParticipantRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
+        
+        validateGroupConversation(conversation);
+        validateParticipantAccess(conversation, userId);
+        validateAdminPermission(conversation, userId);
+        validateNoDuplicateParticipantIds(request.getParticipantIds());
 
-        // Only allow for GROUP conversations
-        if (conversation.getTypeConversation() != TypeConversation.GROUP) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        Set<String> existingParticipantIds = conversation.getParticipants().stream()
+                .map(ParticipantInfo::getUserId)
+                .collect(Collectors.toSet());
+
+        List<String> duplicateIds = request.getParticipantIds().stream()
+                .filter(existingParticipantIds::contains)
+                .collect(Collectors.toList());
+
+        if (!duplicateIds.isEmpty()) {
+            throw new AppException(ErrorCode.PARTICIPANT_ALREADY_EXISTS);
         }
 
-        validateParticipantAccess(conversation, userId);
-
-        // Get existing participant IDs
-        List<String> existingParticipantIds = conversation.getParticipants().stream()
-                .map(ParticipantInfo::getUserId)
-                .collect(Collectors.toList());
-
-        // Filter out already existing participants
-        List<String> newParticipantIds = request.getParticipantIds().stream()
-                .filter(id -> !existingParticipantIds.contains(id))
-                .collect(Collectors.toList());
+        List<String> newParticipantIds = new ArrayList<>(request.getParticipantIds());
 
         if (newParticipantIds.isEmpty()) {
-            return toConversationResponse(conversation);
+            throw new AppException(ErrorCode.INVALID_KEY);
         }
 
-        // Get profiles for new participants
-        var profilesResponse = profileClient.getProfiles(newParticipantIds);
-        if (profilesResponse == null || profilesResponse.getResult() == null) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
-
-        List<ProfileResponse> newProfiles = profilesResponse.getResult();
-        List<ParticipantInfo> newParticipants = newProfiles.stream()
-                .map(profile -> ParticipantInfo.builder()
-                        .userId(profile.getUserId())
-                        .username(profile.getUsername())
-                        .firstName(profile.getFirstName())
-                        .lastName(profile.getLastName())
-                        .avatar(profile.getAvatar())
-                        .build())
-                .collect(Collectors.toList());
-
-        // Add new participants
+        List<ParticipantInfo> newParticipants = buildParticipantInfosFromProfiles(
+                getProfilesOrThrow(newParticipantIds), false);
+        
         List<ParticipantInfo> updatedParticipants = new ArrayList<>(conversation.getParticipants());
         updatedParticipants.addAll(newParticipants);
         conversation.setParticipants(updatedParticipants);
@@ -247,23 +154,14 @@ public class ConversationService {
 
     @Transactional
     public ConversationResponse removeParticipant(String conversationId, String participantId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-
-        // Only allow for GROUP conversations
-        if (conversation.getTypeConversation() != TypeConversation.GROUP) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
+        
+        validateGroupConversation(conversation);
         validateParticipantAccess(conversation, userId);
+        validateAdminPermission(conversation, userId);
+        validateNotSelf(participantId, userId);
 
-        // Cannot remove yourself from group (use leave instead)
-        if (participantId.equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
-        // Remove participant
         List<ParticipantInfo> updatedParticipants = conversation.getParticipants().stream()
                 .filter(p -> !p.getUserId().equals(participantId))
                 .collect(Collectors.toList());
@@ -274,32 +172,120 @@ public class ConversationService {
 
         conversation.setParticipants(updatedParticipants);
         conversation.setModifiedDate(Instant.now());
-
         conversation = conversationRepository.save(conversation);
         return toConversationResponse(conversation);
     }
 
     @Transactional
-    public void leave(String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+    public ConversationResponse promoteToAdmin(String conversationId, AddAdminRequest request) {
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
+        
+        validateGroupConversation(conversation);
+        validateParticipantAccess(conversation, userId);
+        validateAdminPermission(conversation, userId);
+        validateNoDuplicateParticipantIds(request.getParticipantIds());
 
+        Set<String> participantIds = conversation.getParticipants().stream()
+                .map(ParticipantInfo::getUserId)
+                .collect(Collectors.toSet());
+
+        List<String> invalidIds = request.getParticipantIds().stream()
+                .filter(id -> !participantIds.contains(id))
+                .collect(Collectors.toList());
+
+        if (!invalidIds.isEmpty()) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+
+        List<ParticipantInfo> updatedParticipants = conversation.getParticipants().stream()
+                .map(p -> {
+                    if (request.getParticipantIds().contains(p.getUserId())) {
+                        return ParticipantInfo.builder()
+                                .userId(p.getUserId())
+                                .username(p.getUsername())
+                                .firstName(p.getFirstName())
+                                .lastName(p.getLastName())
+                                .avatar(p.getAvatar())
+                                .role(ParticipantRole.ADMIN)
+                                .build();
+                    }
+                    return p;
+                })
+                .collect(Collectors.toList());
+
+        conversation.setParticipants(updatedParticipants);
+        conversation.setModifiedDate(Instant.now());
+        conversation = conversationRepository.save(conversation);
+        return toConversationResponse(conversation);
+    }
+
+    @Transactional
+    public ConversationResponse demoteFromAdmin(String conversationId, String participantId) {
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
+        
+        validateGroupConversation(conversation);
+        validateParticipantAccess(conversation, userId);
+        validateAdminPermission(conversation, userId);
+        validateNotSelf(participantId, userId);
+
+        ParticipantInfo targetParticipant = conversation.getParticipants().stream()
+                .filter(p -> p.getUserId().equals(participantId))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (targetParticipant.getRole() != ParticipantRole.ADMIN) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        // Kiểm tra phải còn ít nhất 1 admin sau khi demote
+        long adminCount = conversation.getParticipants().stream()
+                .filter(p -> p.getRole() == ParticipantRole.ADMIN)
+                .count();
+        
+        if (adminCount <= 1) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        List<ParticipantInfo> updatedParticipants = conversation.getParticipants().stream()
+                .map(p -> {
+                    if (p.getUserId().equals(participantId)) {
+                        return ParticipantInfo.builder()
+                                .userId(p.getUserId())
+                                .username(p.getUsername())
+                                .firstName(p.getFirstName())
+                                .lastName(p.getLastName())
+                                .avatar(p.getAvatar())
+                                .role(ParticipantRole.MEMBER)
+                                .build();
+                    }
+                    return p;
+                })
+                .collect(Collectors.toList());
+
+        conversation.setParticipants(updatedParticipants);
+        conversation.setModifiedDate(Instant.now());
+        conversation = conversationRepository.save(conversation);
+        return toConversationResponse(conversation);
+    }
+
+    @Transactional
+    public void leaveConversation(String conversationId) {
+        String userId = getCurrentUserId();
+        Conversation conversation = findConversationOrThrow(conversationId);
         validateParticipantAccess(conversation, userId);
 
-        // For DIRECT conversation, delete it
         if (conversation.getTypeConversation() == TypeConversation.DIRECT) {
             conversationRepository.delete(conversation);
             return;
         }
 
-        // For GROUP conversation, remove user from participants
         List<ParticipantInfo> updatedParticipants = conversation.getParticipants().stream()
                 .filter(p -> !p.getUserId().equals(userId))
                 .collect(Collectors.toList());
 
-        // If only one participant left, delete conversation
-        if (updatedParticipants.size() <= 1) {
+        if (updatedParticipants.size() < MIN_GROUP_PARTICIPANTS_AFTER_LEAVE) {
             conversationRepository.delete(conversation);
         } else {
             conversation.setParticipants(updatedParticipants);
@@ -308,36 +294,233 @@ public class ConversationService {
         }
     }
 
-    private String generateParticipantHash(List<String> ids) {
-        StringJoiner stringJoiner = new StringJoiner("_");
+    private String getCurrentUserId() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    private Conversation findConversationOrThrow(String conversationId) {
+        return conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+    }
+
+    private ProfileResponse getProfileOrThrow(String userId) {
+        var userInfoResponse = profileClient.getProfile(userId);
+        if (Objects.isNull(userInfoResponse) || userInfoResponse.getResult() == null) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        return userInfoResponse.getResult();
+    }
+
+    private List<ProfileResponse> getProfilesOrThrow(List<String> userIds) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        var profilesResponse = profileClient.getProfiles(userIds);
+        if (profilesResponse == null || profilesResponse.getResult() == null || profilesResponse.getResult().isEmpty()) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        return profilesResponse.getResult();
+    }
+
+    private void validateConversationRequest(ConversationRequest request) {
+        // Chỉ cần kiểm tra có participants không, type sẽ được xác định tự động
+        if (request.getParticipantIds() == null || request.getParticipantIds().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_CONVERSATION_TYPE);
+        }
+    }
+
+    private List<String> getOtherParticipantIds(List<String> participantIds, String currentUserId) {
+        List<String> otherIds = new ArrayList<>(participantIds);
+        otherIds.remove(currentUserId);
+        return otherIds;
+    }
+
+    private List<ParticipantInfo> buildParticipantInfos(ProfileResponse currentUser, List<ProfileResponse> otherProfiles, TypeConversation typeConversation, boolean isCreator) {
+        List<ParticipantInfo> participantInfos = new ArrayList<>();
+        
+        // DIRECT conversation: tất cả participants đều là ADMIN
+        // GROUP conversation: chỉ creator là ADMIN, các thành viên khác là MEMBER
+        if (typeConversation == TypeConversation.DIRECT) {
+            participantInfos.add(buildParticipantInfo(currentUser, ParticipantRole.ADMIN));
+            participantInfos.addAll(buildParticipantInfosFromProfiles(otherProfiles, true));
+        } else {
+            // GROUP conversation
+            ParticipantRole creatorRole = isCreator ? ParticipantRole.ADMIN : ParticipantRole.MEMBER;
+            participantInfos.add(buildParticipantInfo(currentUser, creatorRole));
+            participantInfos.addAll(buildParticipantInfosFromProfiles(otherProfiles, false));
+        }
+        
+        return participantInfos;
+    }
+
+    private List<ParticipantInfo> buildParticipantInfosFromProfiles(List<ProfileResponse> profiles, boolean isAdmin) {
+        ParticipantRole role = isAdmin ? ParticipantRole.ADMIN : ParticipantRole.MEMBER;
+        return profiles.stream()
+                .map(profile -> buildParticipantInfo(profile, role))
+                .collect(Collectors.toList());
+    }
+
+    private ParticipantInfo buildParticipantInfo(ProfileResponse profile, ParticipantRole role) {
+        return ParticipantInfo.builder()
+                .userId(profile.getUserId())
+                .username(profile.getUsername())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .avatar(profile.getAvatar())
+                .role(role)
+                .build();
+    }
+
+    private String generateParticipantHash(List<ParticipantInfo> participantInfos) {
+        List<String> sortedIds = participantInfos.stream()
+                .map(ParticipantInfo::getUserId)
+                .sorted()
+                .toList();
+        return generateParticipantHashFromIds(sortedIds);
+    }
+
+    private String generateParticipantHashFromIds(List<String> ids) {
+        StringJoiner stringJoiner = new StringJoiner(PARTICIPANT_HASH_DELIMITER);
         ids.forEach(stringJoiner::add);
         return stringJoiner.toString();
     }
 
-    private ConversationResponse toConversationResponse(Conversation conversation) {
-        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+    private Conversation findOrCreateConversation(TypeConversation typeConversation, 
+                                                  List<ParticipantInfo> participantInfos, 
+                                                  String userIdHash) {
+        return conversationRepository.findByParticipantsHash(userIdHash)
+                .filter(conv -> conv.getTypeConversation() == typeConversation)
+                .map(conv -> {
+                    // Đảm bảo role đúng cho conversation cũ
+                    // DIRECT: tất cả phải là ADMIN
+                    // GROUP: giữ nguyên role hiện tại
+                    if (conv.getTypeConversation() == TypeConversation.DIRECT) {
+                        List<ParticipantInfo> normalizedParticipants = conv.getParticipants().stream()
+                                .map(p -> ParticipantInfo.builder()
+                                        .userId(p.getUserId())
+                                        .username(p.getUsername())
+                                        .firstName(p.getFirstName())
+                                        .lastName(p.getLastName())
+                                        .avatar(p.getAvatar())
+                                        .role(ParticipantRole.ADMIN) // DIRECT: tất cả đều là ADMIN
+                                        .build())
+                                .collect(Collectors.toList());
+                        conv.setParticipants(normalizedParticipants);
+                        conv.setModifiedDate(Instant.now());
+                        return conversationRepository.save(conv);
+                    }
+                    return conv;
+                })
+                .orElseGet(() -> createNewConversation(typeConversation, participantInfos, userIdHash));
+    }
 
+    private Conversation createNewConversation(TypeConversation typeConversation, 
+                                               List<ParticipantInfo> participantInfos, 
+                                               String userIdHash) {
+        Conversation newConversation = Conversation.builder()
+                .typeConversation(typeConversation)
+                .participants(participantInfos)
+                .participantsHash(userIdHash)
+                .createdDate(Instant.now())
+                .modifiedDate(Instant.now())
+                .build();
+        return conversationRepository.save(newConversation);
+    }
+
+    private void validateGroupConversation(Conversation conversation) {
+        if (conversation.getTypeConversation() != TypeConversation.GROUP) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void validateNotSelf(String participantId, String userId) {
+        if (participantId.equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void validateNoDuplicateParticipantIds(List<String> participantIds) {
+        Set<String> uniqueIds = new HashSet<>(participantIds);
+        if (uniqueIds.size() != participantIds.size()) {
+            throw new AppException(ErrorCode.DUPLICATE_PARTICIPANT_IDS);
+        }
+    }
+
+    private void validateAdminPermission(Conversation conversation, String userId) {
+        // DIRECT conversation: tất cả participants đều là admin, không cần validate
+        if (conversation.getTypeConversation() == TypeConversation.DIRECT) {
+            return;
+        }
+        
+        // GROUP conversation: chỉ admin mới có quyền
+        boolean isAdmin = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getUserId().equals(userId) && p.getRole() == ParticipantRole.ADMIN);
+        if (!isAdmin) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void updateConversationDetails(Conversation conversation, UpdateConversationRequest request) {
+        if (request.getConversationName() != null && !request.getConversationName().trim().isEmpty()) {
+            conversation.setConversationName(request.getConversationName());
+        }
+        if (request.getConversationAvatar() != null) {
+            conversation.setConversationAvatar(request.getConversationAvatar());
+        }
+        conversation.setModifiedDate(Instant.now());
+    }
+
+    private ConversationResponse toConversationResponse(Conversation conversation) {
+        String currentUserId = getCurrentUserId();
         ConversationResponse conversationResponse = conversationMapper.toConversationResponse(conversation);
 
-        // For GROUP conversations, use conversation name/avatar if set
         if (conversation.getTypeConversation() == TypeConversation.GROUP) {
-            if (conversation.getConversationName() != null) {
-                conversationResponse.setConversationName(conversation.getConversationName());
-            }
-            if (conversation.getConversationAvatar() != null) {
-                conversationResponse.setConversationAvatar(conversation.getConversationAvatar());
-            }
+            enrichGroupConversationResponse(conversationResponse, conversation);
         } else {
-            // For DIRECT conversations, use the other participant's info
-            conversation.getParticipants().stream()
-                    .filter(participantInfo -> !participantInfo.getUserId().equals(currentUserId))
-                    .findFirst().ifPresent(participantInfo -> {
-                        conversationResponse.setConversationName(participantInfo.getUsername());
-                        conversationResponse.setConversationAvatar(participantInfo.getAvatar());
-                    });
+            enrichDirectConversationResponse(conversationResponse, conversation, currentUserId);
         }
 
         return conversationResponse;
+    }
+
+    private void enrichGroupConversationResponse(ConversationResponse response, Conversation conversation) {
+        if (conversation.getConversationName() != null) {
+            response.setConversationName(conversation.getConversationName());
+        }
+        if (conversation.getConversationAvatar() != null) {
+            response.setConversationAvatar(conversation.getConversationAvatar());
+        }
+    }
+
+    private void enrichDirectConversationResponse(ConversationResponse response, 
+                                                   Conversation conversation, 
+                                                   String currentUserId) {
+        conversation.getParticipants().stream()
+                .filter(participantInfo -> !participantInfo.getUserId().equals(currentUserId))
+                .findFirst()
+                .ifPresent(participantInfo -> {
+                    // Hiển thị họ + tên thay vì username
+                    String displayName = getDisplayName(
+                            participantInfo.getFirstName(), 
+                            participantInfo.getLastName(), 
+                            participantInfo.getUsername()
+                    );
+                    response.setConversationName(displayName);
+                    response.setConversationAvatar(participantInfo.getAvatar());
+                });
+    }
+
+    private String getDisplayName(String firstName, String lastName, String username) {
+        if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
+            return (firstName.trim() + " " + lastName.trim()).trim();
+        } else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        } else if (lastName != null && !lastName.trim().isEmpty()) {
+            return lastName.trim();
+        } else {
+            // Fallback to username if no first/last name
+            return username != null ? username : "";
+        }
     }
 
     private void validateParticipantAccess(Conversation conversation, String userId) {

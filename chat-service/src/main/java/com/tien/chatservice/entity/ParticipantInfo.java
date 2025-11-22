@@ -1,5 +1,6 @@
 package com.tien.chatservice.entity;
 
+import com.tien.chatservice.constant.ParticipantRole;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,4 +21,7 @@ public class ParticipantInfo {
     String firstName;
     String lastName;
     String avatar;
+    
+    @Builder.Default
+    ParticipantRole role = ParticipantRole.MEMBER;
 }

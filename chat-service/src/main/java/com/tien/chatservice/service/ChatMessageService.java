@@ -5,16 +5,13 @@ import com.tien.chatservice.dto.request.ChatMessageRequest;
 import com.tien.chatservice.dto.request.UpdateMessageRequest;
 import com.tien.chatservice.dto.response.ChatMessageResponse;
 import com.tien.chatservice.dto.response.ProfileResponse;
-import com.tien.chatservice.dto.response.ReadReceiptResponse;
 import com.tien.chatservice.entity.ChatMessage;
 import com.tien.chatservice.entity.ParticipantInfo;
-import com.tien.chatservice.entity.ReadReceipt;
 import com.tien.chatservice.exception.AppException;
 import com.tien.chatservice.exception.ErrorCode;
 import com.tien.chatservice.mapper.ChatMessageMapper;
 import com.tien.chatservice.repository.ChatMessageRepository;
 import com.tien.chatservice.repository.ConversationRepository;
-import com.tien.chatservice.repository.ReadReceiptRepository;
 import com.tien.chatservice.repository.httpclient.ProfileClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +35,8 @@ import java.util.Objects;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatMessageService {
 
+    private static final String SORT_FIELD_CREATED_DATE = "createdDate";
+
     ChatMessageRepository chatMessageRepository;
 
     ChatMessageMapper chatMessageMapper;
@@ -46,36 +45,12 @@ public class ChatMessageService {
 
     ConversationRepository conversationRepository;
 
-    ReadReceiptRepository readReceiptRepository;
-
     public ChatMessageResponse create(ChatMessageRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = getCurrentUserId();
+        validateConversationAccess(request.getConversationId());
 
-        conversationRepository.findById(request.getConversationId())
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
-                .getParticipants()
-                .stream()
-                .filter(participantInfo -> userId.equals(participantInfo.getUserId()))
-                .findAny()
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-
-        var userInfoResponse = profileClient.getProfile(userId);
-        if (Objects.isNull(userInfoResponse)) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
-        ProfileResponse userInfo = userInfoResponse.getResult();
-
-        ChatMessage chatMessage = chatMessageMapper.toChatMessage(request);
-
-        chatMessage.setSender(ParticipantInfo.builder()
-                        .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
-                        .avatar(userInfo.getAvatar())
-                .build());
-
-        chatMessage.setCreatedDate(Instant.now());
+        ProfileResponse userInfo = getProfileOrThrow(userId);
+        ChatMessage chatMessage = buildChatMessage(request, userInfo);
         chatMessageRepository.save(chatMessage);
 
         return toChatMessageResponse(chatMessage);
@@ -93,7 +68,7 @@ public class ChatMessageService {
             String conversationId, int page, int size) {
         validateConversationAccess(conversationId);
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(SORT_FIELD_CREATED_DATE).descending());
         Page<ChatMessage> messagePage = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(
                 conversationId, pageable);
 
@@ -121,15 +96,10 @@ public class ChatMessageService {
 
     @Transactional
     public ChatMessageResponse update(String messageId, UpdateMessageRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        ChatMessage message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
-
-        // Check if user is the sender
-        if (!message.getSender().getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
+        String userId = getCurrentUserId();
+        ChatMessage message = findMessageOrThrow(messageId);
+        
+        validateSender(message, userId);
         validateConversationAccess(message.getConversationId());
 
         message.setMessage(request.getMessage());
@@ -140,92 +110,58 @@ public class ChatMessageService {
 
     @Transactional
     public void delete(String messageId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        ChatMessage message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
-
-        // Check if user is the sender
-        if (!message.getSender().getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
+        String userId = getCurrentUserId();
+        ChatMessage message = findMessageOrThrow(messageId);
+        
+        validateSender(message, userId);
         validateConversationAccess(message.getConversationId());
-
-        // Delete associated read receipts
-        readReceiptRepository.deleteAll(readReceiptRepository.findAllByMessageId(messageId));
 
         chatMessageRepository.delete(message);
     }
 
-    @Transactional
-    public ReadReceiptResponse markAsRead(String messageId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        ChatMessage message = chatMessageRepository.findById(messageId)
+    private String getCurrentUserId() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    private ChatMessage findMessageOrThrow(String messageId) {
+        return chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
+    }
 
-        validateConversationAccess(message.getConversationId());
-
-        // Don't mark own messages as read
-        if (message.getSender().getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+    private ProfileResponse getProfileOrThrow(String userId) {
+        var userInfoResponse = profileClient.getProfile(userId);
+        if (Objects.isNull(userInfoResponse) || userInfoResponse.getResult() == null) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
         }
+        return userInfoResponse.getResult();
+    }
 
-        ReadReceipt receipt = readReceiptRepository.findByMessageIdAndUserId(messageId, userId)
-                .orElseGet(() -> {
-                    ReadReceipt newReceipt = ReadReceipt.builder()
-                            .messageId(messageId)
-                            .conversationId(message.getConversationId())
-                            .userId(userId)
-                            .readAt(Instant.now())
-                            .build();
-                    return readReceiptRepository.save(newReceipt);
-                });
+    private ChatMessage buildChatMessage(ChatMessageRequest request, ProfileResponse userInfo) {
+        ChatMessage chatMessage = chatMessageMapper.toChatMessage(request);
+        chatMessage.setSender(buildParticipantInfo(userInfo));
+        chatMessage.setCreatedDate(Instant.now());
+        return chatMessage;
+    }
 
-        return ReadReceiptResponse.builder()
-                .id(receipt.getId())
-                .messageId(receipt.getMessageId())
-                .conversationId(receipt.getConversationId())
-                .userId(receipt.getUserId())
-                .readAt(receipt.getReadAt())
+    private ParticipantInfo buildParticipantInfo(ProfileResponse profile) {
+        return ParticipantInfo.builder()
+                .userId(profile.getUserId())
+                .username(profile.getUsername())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .avatar(profile.getAvatar())
+                .role(com.tien.chatservice.constant.ParticipantRole.MEMBER) // Default role for message sender
                 .build();
     }
 
-    public List<ReadReceiptResponse> getReadReceipts(String messageId) {
-        ChatMessage message = chatMessageRepository.findById(messageId)
-                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
-
-        validateConversationAccess(message.getConversationId());
-
-        return readReceiptRepository.findAllByMessageId(messageId).stream()
-                .map(receipt -> ReadReceiptResponse.builder()
-                        .id(receipt.getId())
-                        .messageId(receipt.getMessageId())
-                        .conversationId(receipt.getConversationId())
-                        .userId(receipt.getUserId())
-                        .readAt(receipt.getReadAt())
-                        .build())
-                .toList();
-    }
-
-    public long getUnreadCount(String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        validateConversationAccess(conversationId);
-
-        // Count messages in conversation that are not from current user and not read
-        List<ChatMessage> allMessages = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
-        List<String> readMessageIds = readReceiptRepository.findAllByConversationIdAndUserId(conversationId, userId)
-                .stream()
-                .map(ReadReceipt::getMessageId)
-                .toList();
-
-        return allMessages.stream()
-                .filter(msg -> !msg.getSender().getUserId().equals(userId))
-                .filter(msg -> !readMessageIds.contains(msg.getId()))
-                .count();
+    private void validateSender(ChatMessage message, String userId) {
+        if (!message.getSender().getUserId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
     }
 
     private void validateConversationAccess(String conversationId) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = getCurrentUserId();
 
         conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
@@ -237,11 +173,9 @@ public class ChatMessageService {
     }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = getCurrentUserId();
         var chatMessageResponse = chatMessageMapper.toChatMessageResponse(chatMessage);
-
         chatMessageResponse.setMe(userId.equals(chatMessage.getSender().getUserId()));
-
         return chatMessageResponse;
     }
 }

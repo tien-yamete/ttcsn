@@ -8,6 +8,6 @@ import org.mapstruct.Mapper;
 @Mapper(componentModel = "spring")
 public interface ChatMessageMapper {
     ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage);
-
+    
     ChatMessage toChatMessage(ChatMessageRequest request);
 }

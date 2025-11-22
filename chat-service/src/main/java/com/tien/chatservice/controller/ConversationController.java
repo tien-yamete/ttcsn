@@ -1,6 +1,7 @@
 package com.tien.chatservice.controller;
 
 import com.tien.chatservice.dto.ApiResponse;
+import com.tien.chatservice.dto.request.AddAdminRequest;
 import com.tien.chatservice.dto.request.AddParticipantRequest;
 import com.tien.chatservice.dto.request.ConversationRequest;
 import com.tien.chatservice.dto.request.UpdateConversationRequest;
@@ -50,17 +51,17 @@ public class ConversationController {
     }
 
     @PutMapping("/{id}")
-    ApiResponse<ConversationResponse> update(
+    ApiResponse<ConversationResponse> updateConversation(
             @PathVariable String id,
             @RequestBody @Valid UpdateConversationRequest request) {
         return ApiResponse.<ConversationResponse>builder()
-                .result(conversationService.update(id, request))
+                .result(conversationService.updateConversation(id, request))
                 .build();
     }
 
     @DeleteMapping("/{id}")
-    ApiResponse<Void> delete(@PathVariable String id) {
-        conversationService.delete(id);
+    ApiResponse<Void> deleteConversation(@PathVariable String id) {
+        conversationService.deleteConversation(id);
         return ApiResponse.<Void>builder().build();
     }
 
@@ -83,8 +84,26 @@ public class ConversationController {
     }
 
     @PostMapping("/{id}/leave")
-    ApiResponse<Void> leave(@PathVariable String id) {
-        conversationService.leave(id);
+    ApiResponse<Void> leaveConversation(@PathVariable String id) {
+        conversationService.leaveConversation(id);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/{id}/admins")
+    ApiResponse<ConversationResponse> promoteToAdmin(
+            @PathVariable String id,
+            @RequestBody @Valid AddAdminRequest request) {
+        return ApiResponse.<ConversationResponse>builder()
+                .result(conversationService.promoteToAdmin(id, request))
+                .build();
+    }
+
+    @DeleteMapping("/{id}/admins/{participantId}")
+    ApiResponse<ConversationResponse> demoteFromAdmin(
+            @PathVariable String id,
+            @PathVariable String participantId) {
+        return ApiResponse.<ConversationResponse>builder()
+                .result(conversationService.demoteFromAdmin(id, participantId))
+                .build();
     }
 }

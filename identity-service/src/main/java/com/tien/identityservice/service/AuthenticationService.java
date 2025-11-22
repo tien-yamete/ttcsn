@@ -3,6 +3,7 @@ package com.tien.identityservice.service;
 import java.text.ParseException;
 import java.util.HashSet;
 
+import com.tien.identityservice.constant.SignInProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,7 @@ public class AuthenticationService {
 
         user.setEmailVerified(false);
         user.setIsActive(false);
+        user.setProvider(SignInProvider.LOCAL);
 
         try {
             user = userRepository.save(user);

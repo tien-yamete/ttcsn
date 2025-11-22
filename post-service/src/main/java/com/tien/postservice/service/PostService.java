@@ -85,7 +85,7 @@ public class PostService {
                 log.error("Failed to upload images for post: {}", post.getId(), e);
             }
         }
-        return postMapper.toPostResponse(post);
+        return buildPostResponse(post, userId);
     }
 
     public PageResponse<PostResponse> getMyPosts(int page, int size){
@@ -96,11 +96,10 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findAllByUserId(userId, pageable);
 
-        String username = userProfile != null ? userProfile.getUsername() : null;
         var postList = pageData.getContent().stream()
                 .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
-                    enrichPostResponse(postResponse, post, username);
+                    enrichPostResponse(postResponse, post, userProfile);
                     return postResponse;
                 })
                 .toList();
@@ -151,8 +150,6 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("savedDate").descending());
         var pageData = savedPostRepository.findAllByUserId(userId, pageable);
 
-        String username = userProfileResponse != null ? userProfileResponse.getUsername() : null;
-
         var postList = pageData.getContent().stream()
                 .map(savedPost -> {
                     Post post = postRepository.findById(savedPost.getPostId()).orElse(null);
@@ -160,7 +157,7 @@ public class PostService {
                         return null;
                     }
                     var postResponse = postMapper.toPostResponse(post);
-                    enrichPostResponse(postResponse, post, username);
+                    enrichPostResponse(postResponse, post, userProfileResponse);
                     return postResponse;
                 })
                 .filter(post -> post != null)
@@ -326,8 +323,6 @@ public class PostService {
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findAllByUserId(userId, pageable);
-
-        String username = userProfile != null ? userProfile.getUsername() : null;
         
         // Nếu không phải owner, chỉ hiển thị PUBLIC posts
         boolean isOwner = userId.equals(currentUserId);
@@ -335,7 +330,7 @@ public class PostService {
                 .filter(post -> isOwner || post.getPrivacy() == PrivacyType.PUBLIC)
                 .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
-                    enrichPostResponse(postResponse, post, username);
+                    enrichPostResponse(postResponse, post, userProfile);
                     return postResponse;
                 })
                 .toList();
@@ -356,7 +351,6 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("sharedDate").descending());
         var pageData = sharedPostRepository.findAllByUserId(userId, pageable);
 
-        String username = userProfile != null ? userProfile.getUsername() : null;
         var postList = pageData.getContent().stream()
                 .map(sharedPost -> {
                     Post post = postRepository.findById(sharedPost.getPostId()).orElse(null);
@@ -364,7 +358,7 @@ public class PostService {
                         return null;
                     }
                     var postResponse = postMapper.toPostResponse(post);
-                    enrichPostResponse(postResponse, post, username);
+                    enrichPostResponse(postResponse, post, userProfile);
                     return postResponse;
                 })
                 .filter(post -> post != null)
@@ -472,15 +466,44 @@ public class PostService {
         }
     }
 
-    private void enrichPostResponse(PostResponse postResponse, Post post, String username) {
+    private void enrichPostResponse(PostResponse postResponse, Post post, UserProfileResponse userProfile) {
         postResponse.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
-        postResponse.setUsername(username);
+        if (userProfile != null) {
+            // Hiển thị họ + tên thay vì username
+            String displayName = getDisplayName(userProfile.getFirstName(), userProfile.getLastName(), userProfile.getUsername());
+            postResponse.setUsername(displayName);
+            postResponse.setUserAvatar(userProfile.getAvatar());
+        }
+        
+        // Set interaction stats
+        String currentUserId = getCurrentUserId();
+        postResponse.setIsSaved(savedPostRepository.existsByUserIdAndPostId(currentUserId, post.getId()));
+        postResponse.setShareCount(sharedPostRepository.countByPostId(post.getId()));
+        
+        // TODO: likeCount, commentCount, isLiked cần gọi interaction-service
+        // Tạm thời set null hoặc 0
+        postResponse.setLikeCount(0);
+        postResponse.setCommentCount(0);
+        postResponse.setIsLiked(false);
+    }
+
+    private String getDisplayName(String firstName, String lastName, String username) {
+        if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
+            return (firstName.trim() + " " + lastName.trim()).trim();
+        } else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        } else if (lastName != null && !lastName.trim().isEmpty()) {
+            return lastName.trim();
+        } else {
+            // Fallback to username if no first/last name
+            return username != null ? username : "";
+        }
     }
 
     private PostResponse buildPostResponse(Post post, String userId) {
         var postResponse = postMapper.toPostResponse(post);
         UserProfileResponse userProfile = getUserProfile(userId);
-        enrichPostResponse(postResponse, post, userProfile != null ? userProfile.getUsername() : null);
+        enrichPostResponse(postResponse, post, userProfile);
         return postResponse;
     }
 }

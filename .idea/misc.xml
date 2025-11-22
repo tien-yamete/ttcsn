@@ -17,6 +17,7 @@
         <option value="$PROJECT_DIR$/shared-common/pom.xml" />
         <option value="$PROJECT_DIR$/shared-contacts/pom.xml" />
         <option value="$PROJECT_DIR$/social-service/pom.xml" />
+        <option value="$PROJECT_DIR$/interaction-service/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
