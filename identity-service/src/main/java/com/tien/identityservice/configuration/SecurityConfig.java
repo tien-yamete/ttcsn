@@ -40,7 +40,9 @@ public class SecurityConfig {
         "/auth/refresh",
         "/auth/verify-user",
         "/auth/resend-verification",
-        "/auth/token"
+        "/auth/token",
+        "/auth/forgot-password",
+        "/auth/reset-password"
     };
 
     CustomJwtDecoder customJwtDecoder;
