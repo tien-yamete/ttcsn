@@ -14,8 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+
+import java.security.Principal;
 
 @Slf4j
 @Controller
@@ -28,39 +29,72 @@ public class WebSocketController {
     ConversationRepository conversationRepository;
 
     @MessageMapping("/chat.sendMessage")
-    public void sendMessage(@Payload ChatMessageRequest request) {
+    public void sendMessage(@Payload ChatMessageRequest request, Principal principal) {
+        String userId = null;
         try {
-            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-            log.info("Nhận tin nhắn qua WebSocket từ user {}: conversationId={}, message={}", 
+            if (principal == null || principal.getName() == null) {
+                log.warn("Không tìm thấy principal khi sendMessage");
+                return;
+            }
+            
+            userId = principal.getName();
+            
+            // Đảm bảo Authentication được set vào SecurityContextHolder
+            // (Interceptor đã set rồi, nhưng đảm bảo chắc chắn cho trường hợp edge case)
+            if (principal instanceof org.springframework.security.core.Authentication) {
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .setAuthentication((org.springframework.security.core.Authentication) principal);
+            }
+
+            log.info("Nhận tin nhắn qua WebSocket từ user {}: conversationId={}, message={}",
                     userId, request.getConversationId(), request.getMessage());
-            
+
+            // Service sẽ tự lấy userId từ SecurityContextHolder (đã được set bởi interceptor)
             ChatMessageResponse response = chatMessageService.create(request);
-            
+
             messagingTemplate.convertAndSend(
-                    "/topic/conversation/" + request.getConversationId(), 
+                    "/topic/conversation/" + request.getConversationId(),
                     response
             );
         } catch (Exception e) {
             log.error("Lỗi khi gửi tin nhắn qua WebSocket: {}", e.getMessage(), e);
-            // Send error notification to sender
-            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-            messagingTemplate.convertAndSendToUser(
-                    userId,
-                    "/queue/errors",
-                    "Gửi tin nhắn thất bại: " + e.getMessage()
-            );
+            if (userId != null) {
+                try {
+                    messagingTemplate.convertAndSendToUser(
+                            userId,
+                            "/queue/errors",
+                            "Gửi tin nhắn thất bại: " + e.getMessage()
+                    );
+                } catch (Exception ex) {
+                    log.error("Không thể gửi error notification: {}", ex.getMessage());
+                }
+            }
         }
     }
 
     @MessageMapping("/chat.typing")
-    public void handleTyping(@Payload TypingNotification notification) {
+    public void handleTyping(@Payload TypingNotification notification, Principal principal) {
         try {
-            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (principal == null || principal.getName() == null) {
+                log.warn("Không tìm thấy principal khi handleTyping");
+                return;
+            }
+            
+            String userId = principal.getName();
+            
+            // Validate conversationId
+            if (notification.getConversationId() == null || notification.getConversationId().trim().isEmpty()) {
+                log.warn("Typing notification không có conversationId");
+                return;
+            }
+            
+            // Tạo biến final để sử dụng trong lambda
+            final String finalUserId = userId;
             
             // Validate user is participant
             boolean isParticipant = conversationRepository.findById(notification.getConversationId())
                     .map(conv -> conv.getParticipants().stream()
-                            .anyMatch(p -> p.getUserId().equals(userId)))
+                            .anyMatch(p -> p.getUserId().equals(finalUserId)))
                     .orElse(false);
             
             if (!isParticipant) {
@@ -84,14 +118,28 @@ public class WebSocketController {
     }
 
     @MessageMapping("/chat.addUser")
-    public void handleUserJoin(@Payload ChatNotification notification) {
+    public void handleUserJoin(@Payload ChatNotification notification, Principal principal) {
         try {
-            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (principal == null || principal.getName() == null) {
+                log.warn("Không tìm thấy principal khi handleUserJoin");
+                return;
+            }
+            
+            String userId = principal.getName();
+            
+            // Validate conversationId
+            if (notification.getConversationId() == null || notification.getConversationId().trim().isEmpty()) {
+                log.warn("User join notification không có conversationId");
+                return;
+            }
+            
+            // Tạo biến final để sử dụng trong lambda
+            final String finalUserId = userId;
             
             // Validate user is participant
             boolean isParticipant = conversationRepository.findById(notification.getConversationId())
                     .map(conv -> conv.getParticipants().stream()
-                            .anyMatch(p -> p.getUserId().equals(userId)))
+                            .anyMatch(p -> p.getUserId().equals(finalUserId)))
                     .orElse(false);
             
             if (!isParticipant) {
@@ -118,14 +166,28 @@ public class WebSocketController {
     }
 
     @MessageMapping("/chat.removeUser")
-    public void handleUserLeave(@Payload ChatNotification notification) {
+    public void handleUserLeave(@Payload ChatNotification notification, Principal principal) {
         try {
-            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (principal == null || principal.getName() == null) {
+                log.warn("Không tìm thấy principal khi handleUserLeave");
+                return;
+            }
+            
+            String userId = principal.getName();
+            
+            // Validate conversationId
+            if (notification.getConversationId() == null || notification.getConversationId().trim().isEmpty()) {
+                log.warn("User leave notification không có conversationId");
+                return;
+            }
+            
+            // Tạo biến final để sử dụng trong lambda
+            final String finalUserId = userId;
             
             // Validate user is participant
             boolean isParticipant = conversationRepository.findById(notification.getConversationId())
                     .map(conv -> conv.getParticipants().stream()
-                            .anyMatch(p -> p.getUserId().equals(userId)))
+                            .anyMatch(p -> p.getUserId().equals(finalUserId)))
                     .orElse(false);
             
             if (!isParticipant) {

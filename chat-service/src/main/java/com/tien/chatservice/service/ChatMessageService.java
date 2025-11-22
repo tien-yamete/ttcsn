@@ -47,33 +47,35 @@ public class ChatMessageService {
 
     public ChatMessageResponse create(ChatMessageRequest request) {
         String userId = getCurrentUserId();
-        validateConversationAccess(request.getConversationId());
+        validateConversationAccess(request.getConversationId(), userId);
 
         ProfileResponse userInfo = getProfileOrThrow(userId);
         ChatMessage chatMessage = buildChatMessage(request, userInfo);
         chatMessageRepository.save(chatMessage);
 
-        return toChatMessageResponse(chatMessage);
+        return toChatMessageResponse(chatMessage, userId);
     }
 
     public List<ChatMessageResponse> getMessages(String conversationId) {
-        validateConversationAccess(conversationId);
+        String userId = getCurrentUserId();
+        validateConversationAccess(conversationId, userId);
 
         var messages = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
 
-        return messages.stream().map(this::toChatMessageResponse).toList();
+        return messages.stream().map(msg -> toChatMessageResponse(msg, userId)).toList();
     }
 
     public PageResponse<ChatMessageResponse> getMessagesWithPagination(
             String conversationId, int page, int size) {
-        validateConversationAccess(conversationId);
+        String userId = getCurrentUserId();
+        validateConversationAccess(conversationId, userId);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(SORT_FIELD_CREATED_DATE).descending());
         Page<ChatMessage> messagePage = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(
                 conversationId, pageable);
 
         List<ChatMessageResponse> responses = messagePage.getContent().stream()
-                .map(this::toChatMessageResponse)
+                .map(msg -> toChatMessageResponse(msg, userId))
                 .toList();
 
         return PageResponse.<ChatMessageResponse>builder()
@@ -86,12 +88,13 @@ public class ChatMessageService {
     }
 
     public ChatMessageResponse getById(String messageId) {
+        String userId = getCurrentUserId();
         ChatMessage message = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
 
-        validateConversationAccess(message.getConversationId());
+        validateConversationAccess(message.getConversationId(), userId);
 
-        return toChatMessageResponse(message);
+        return toChatMessageResponse(message, userId);
     }
 
     @Transactional
@@ -100,12 +103,12 @@ public class ChatMessageService {
         ChatMessage message = findMessageOrThrow(messageId);
         
         validateSender(message, userId);
-        validateConversationAccess(message.getConversationId());
+        validateConversationAccess(message.getConversationId(), userId);
 
         message.setMessage(request.getMessage());
         message = chatMessageRepository.save(message);
 
-        return toChatMessageResponse(message);
+        return toChatMessageResponse(message, userId);
     }
 
     @Transactional
@@ -114,14 +117,23 @@ public class ChatMessageService {
         ChatMessage message = findMessageOrThrow(messageId);
         
         validateSender(message, userId);
-        validateConversationAccess(message.getConversationId());
+        validateConversationAccess(message.getConversationId(), userId);
 
         chatMessageRepository.delete(message);
     }
 
     private String getCurrentUserId() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        String userId = auth.getName();
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        return userId;
     }
+
 
     private ChatMessage findMessageOrThrow(String messageId) {
         return chatMessageRepository.findById(messageId)
@@ -160,8 +172,10 @@ public class ChatMessageService {
         }
     }
 
-    private void validateConversationAccess(String conversationId) {
-        String userId = getCurrentUserId();
+    private void validateConversationAccess(String conversationId, String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalStateException("User ID is required for conversation access validation.");
+        }
 
         conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
@@ -172,10 +186,10 @@ public class ChatMessageService {
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
     }
 
-    private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage) {
-        String userId = getCurrentUserId();
+    private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage, String userId) {
         var chatMessageResponse = chatMessageMapper.toChatMessageResponse(chatMessage);
-        chatMessageResponse.setMe(userId.equals(chatMessage.getSender().getUserId()));
+        // Nếu userId là null, set me = false (an toàn)
+        chatMessageResponse.setMe(userId != null && userId.equals(chatMessage.getSender().getUserId()));
         return chatMessageResponse;
     }
 }

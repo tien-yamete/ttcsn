@@ -41,9 +41,7 @@ public class AuthenticationController {
 
     @PostMapping("/registration")
     ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
-        log.info("Controller: Create user");
         return ApiResponse.<UserResponse>builder()
-                .message("User registered successfully. Please verify your email.")
                 .result(authenticationService.register(request))
                 .build();
     }
@@ -53,16 +51,13 @@ public class AuthenticationController {
         log.info("Verifying OTP for email: {}", request.getEmail());
         authenticationService.verifyUser(request);
         return ApiResponse.<Void>builder()
-                .message("Email verified successfully. You can now login.")
                 .build();
     }
 
     @PostMapping("/resend-verification")
     public ApiResponse<Void> resendVerificationCode(@RequestBody ResendOtpRequest request) {
-        log.info("Resending OTP for email: {}", request.getEmail());
         authenticationService.resendVerificationCode(request.getEmail());
         return ApiResponse.<Void>builder()
-                .message("A new verification code has been sent to your email.")
                 .build();
     }
 
@@ -94,19 +89,15 @@ public class AuthenticationController {
 
     @PostMapping("/forgot-password")
     ApiResponse<Void> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
-        log.info("Yêu cầu quên mật khẩu cho email: {}", request.getEmail());
         authenticationService.forgotPassword(request);
         return ApiResponse.<Void>builder()
-                .message("Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra email.")
                 .build();
     }
 
     @PostMapping("/reset-password")
     ApiResponse<Void> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
-        log.info("Reset password cho email: {}", request.getEmail());
         authenticationService.resetPassword(request);
         return ApiResponse.<Void>builder()
-                .message("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập với mật khẩu mới.")
                 .build();
     }
 }
