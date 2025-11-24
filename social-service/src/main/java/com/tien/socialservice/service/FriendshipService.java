@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -173,5 +174,49 @@ public class FriendshipService {
             log.error("Error while searching friends: {}", e.getMessage(), e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
+    }
+
+    public String getFriendshipStatus(String userId, String friendId) {
+        if (userId.equals(friendId)) {
+            return "SELF";
+        }
+
+        Optional<Friendship> friendship1 = friendshipRepository.findByUserIdAndFriendId(userId, friendId);
+        Optional<Friendship> friendship2 = friendshipRepository.findByUserIdAndFriendId(friendId, userId);
+
+        if (friendship1.isPresent()) {
+            FriendshipStatus status = friendship1.get().getStatus();
+            if (status == FriendshipStatus.ACCEPTED) {
+                return "ACCEPTED";
+            } else if (status == FriendshipStatus.PENDING) {
+                return "SENT";
+            } else {
+                return "REJECTED";
+            }
+        } else if (friendship2.isPresent()) {
+            FriendshipStatus status = friendship2.get().getStatus();
+            if (status == FriendshipStatus.ACCEPTED) {
+                return "ACCEPTED";
+            } else if (status == FriendshipStatus.PENDING) {
+                return "RECEIVED";
+            } else {
+                return "REJECTED";
+            }
+        }
+
+        return "NONE";
+    }
+
+    public List<String> getFriendIds(String userId) {
+        List<Friendship> friendships = friendshipRepository.findAllFriends(userId);
+        return friendships.stream()
+                .map(friendship -> {
+                    if (friendship.getUserId().equals(userId)) {
+                        return friendship.getFriendId();
+                    } else {
+                        return friendship.getUserId();
+                    }
+                })
+                .toList();
     }
 }

@@ -88,15 +88,24 @@ public class CommentService {
                 .map(comment -> buildCommentResponse(comment, userId))
                 .collect(Collectors.toList());
 
-        // Load replies for each comment
-        commentResponses.forEach(commentResponse -> {
-            List<Comment> replies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentResponse.getId());
-            List<CommentResponse> replyResponses = replies.stream()
-                    .map(reply -> buildCommentResponse(reply, userId))
-                    .collect(Collectors.toList());
-            commentResponse.setReplies(replyResponses);
-            commentResponse.setReplyCount(replies.size());
-        });
+        if (!commentResponses.isEmpty()) {
+            List<String> commentIds = commentResponses.stream()
+                    .map(CommentResponse::getId)
+                    .toList();
+
+            List<Comment> allReplies = commentRepository.findByParentCommentIdInOrderByCreatedAtAsc(commentIds);
+            var repliesMap = allReplies.stream()
+                    .collect(Collectors.groupingBy(Comment::getParentCommentId));
+
+            commentResponses.forEach(commentResponse -> {
+                List<Comment> replies = repliesMap.getOrDefault(commentResponse.getId(), List.of());
+                List<CommentResponse> replyResponses = replies.stream()
+                        .map(reply -> buildCommentResponse(reply, userId))
+                        .collect(Collectors.toList());
+                commentResponse.setReplies(replyResponses);
+                commentResponse.setReplyCount(replies.size());
+            });
+        }
 
         return PageResponse.<CommentResponse>builder()
                 .content(commentResponses)
@@ -221,6 +230,10 @@ public class CommentService {
         } catch (Exception e) {
             log.error("Error publishing comment event: {}", e.getMessage(), e);
         }
+    }
+
+    public long getCommentCountByPost(String postId) {
+        return commentRepository.countByPostId(postId);
     }
 
     private String getCurrentUserId() {

@@ -63,5 +63,21 @@ public class LikeController {
                 .result(likeService.getLikesByPost(postId, page, size))
                 .build();
     }
+
+    @GetMapping("/post/{postId}/count")
+    ApiResponse<Long> getLikeCountByPost(@PathVariable String postId) {
+        return ApiResponse.<Long>builder()
+                .message("Lấy số lượng likes thành công")
+                .result(likeService.getLikeCountByPost(postId))
+                .build();
+    }
+
+    @GetMapping("/post/{postId}/is-liked")
+    ApiResponse<Boolean> isPostLiked(@PathVariable String postId) {
+        return ApiResponse.<Boolean>builder()
+                .message("Kiểm tra like thành công")
+                .result(likeService.isPostLiked(postId))
+                .build();
+    }
 }
 

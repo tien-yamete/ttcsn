@@ -48,16 +48,6 @@ public class LikeService {
     public LikeResponse createLike(CreateLikeRequest request) {
         String userId = getCurrentUserId();
 
-        // Validate that either postId or commentId is provided, but not both
-        if ((request.getPostId() == null || request.getPostId().isEmpty()) &&
-                (request.getCommentId() == null || request.getCommentId().isEmpty())) {
-            throw new AppException(ErrorCode.INVALID_LIKE_REQUEST);
-        }
-
-        if (request.getPostId() != null && request.getCommentId() != null) {
-            throw new AppException(ErrorCode.INVALID_LIKE_REQUEST);
-        }
-
         // Check if already liked
         if (request.getPostId() != null) {
             validatePostExists(request.getPostId());
@@ -147,6 +137,15 @@ public class LikeService {
                 .hasNext(likesPage.hasNext())
                 .hasPrevious(likesPage.hasPrevious())
                 .build();
+    }
+
+    public long getLikeCountByPost(String postId) {
+        return likeRepository.countByPostId(postId);
+    }
+
+    public boolean isPostLiked(String postId) {
+        String userId = getCurrentUserId();
+        return likeRepository.findByUserIdAndPostIdAndCommentIdIsNull(userId, postId).isPresent();
     }
 
     private LikeResponse buildLikeResponse(Like like) {

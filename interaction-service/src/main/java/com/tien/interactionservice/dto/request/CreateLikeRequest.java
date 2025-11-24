@@ -1,5 +1,6 @@
 package com.tien.interactionservice.dto.request;
 
+import jakarta.validation.constraints.AssertTrue;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +16,12 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreateLikeRequest {
-    String postId; // One of postId or commentId must be provided
-    String commentId; // One of postId or commentId must be provided
+    String postId;
+    String commentId;
+
+    @AssertTrue(message = "Phải cung cấp postId hoặc commentId")
+    private boolean isValid() {
+        return (postId != null && !postId.trim().isEmpty()) != (commentId != null && !commentId.trim().isEmpty());
+    }
 }
 

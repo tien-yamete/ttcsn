@@ -180,4 +180,13 @@ public class PostController {
                 .result(exists)
                 .build();
     }
+
+    @GetMapping("/feed")
+    ApiResponse<PageResponse<PostResponse>> getFeed(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size) {
+        return ApiResponse.<PageResponse<PostResponse>>builder()
+                .result(postService.getFeed(page, size))
+                .build();
+    }
 }

@@ -20,6 +20,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -127,5 +129,13 @@ public class FollowService {
                 .isFriend(isFriend)
                 .isBlocked(isBlocked)
                 .build();
+    }
+
+    public boolean checkFollowing(String followerId, String followingId) {
+        return followRepository.existsByFollowerIdAndFollowingId(followerId, followingId);
+    }
+
+    public List<String> getFollowingIds(String userId) {
+        return followRepository.findFollowingIdsByUserId(userId);
     }
 }

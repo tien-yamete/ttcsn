@@ -68,32 +68,32 @@ public class GlobalExceptionHandler {
     //      - Nếu có attributes (ví dụ min=18), thì thay thế vào message template.
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException e) {
-        // Lấy message mặc định
-        String enumkey = e.getFieldError().getDefaultMessage();
-
         ErrorCode errorCode = ErrorCode.INVALID_KEY;
-
         Map<String, Object> attributes = null;
 
-        try {
-            // Nếu enumkey trùng với tên ErrorCode -> map đúng mã lỗi
-            errorCode = ErrorCode.valueOf(enumkey);
-
-            // Lấy constraint detail từ annotation validation
-            var constraintViolation = e.getBindingResult().getAllErrors().get(0).unwrap(ConstraintViolation.class);
-
-            attributes = constraintViolation.getConstraintDescriptor().getAttributes();
-
-            log.info(attributes.toString());
-
-        } catch (IllegalArgumentException iae) {
-            // Trường hợp enumkey không match ErrorCode nào
+        var fieldError = e.getFieldError();
+        if (fieldError != null) {
+            String enumkey = fieldError.getDefaultMessage();
+            if (enumkey != null) {
+                try {
+                    errorCode = ErrorCode.valueOf(enumkey);
+                    var errors = e.getBindingResult().getAllErrors();
+                    if (!errors.isEmpty()) {
+                        try {
+                            var constraintViolation = errors.get(0).unwrap(ConstraintViolation.class);
+                            attributes = constraintViolation.getConstraintDescriptor().getAttributes();
+                        } catch (Exception ex) {
+                            log.debug("Cannot unwrap constraint violation", ex);
+                        }
+                    }
+                } catch (IllegalArgumentException iae) {
+                    log.debug("Enum key '{}' does not match any ErrorCode", enumkey);
+                }
+            }
         }
 
         ApiResponse response = new ApiResponse<>();
-
         response.setCode(errorCode.getCode());
-
         response.setMessage(
                 Objects.nonNull(attributes)
                         ? mapAttribute(errorCode.getMessage(), attributes)

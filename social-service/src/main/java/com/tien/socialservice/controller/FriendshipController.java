@@ -88,4 +88,20 @@ public class FriendshipController {
                 .result(friendshipService.searchFriends(userId, keyword))
                 .build();
     }
+
+    @GetMapping("/status/{friendId}")
+    ApiResponse<String> getFriendshipStatus(@PathVariable String friendId) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ApiResponse.<String>builder()
+                .result(friendshipService.getFriendshipStatus(userId, friendId))
+                .build();
+    }
+
+    @GetMapping("/internal/friend-ids")
+    ApiResponse<List<String>> getFriendIds() {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ApiResponse.<List<String>>builder()
+                .result(friendshipService.getFriendIds(userId))
+                .build();
+    }
 }

@@ -14,6 +14,19 @@ import java.util.List;
 public interface PostRepository extends MongoRepository<Post, String> {
     Page<Post> findAllByUserId(String userId, Pageable pageable);
     Page<Post> findByPrivacyAndUserIdNotIn(PrivacyType privacy, List<String> userIds, Pageable pageable);
+    Page<Post> findByUserIdIn(List<String> userIds, Pageable pageable);
+    
+    @Query("{ $and: [ " +
+           "{ userId: { $in: ?0 } }, " +
+           "{ $or: [ { privacy: 'PUBLIC' }, { privacy: 'PRIVATE', userId: ?1 } ] } " +
+           "] }")
+    Page<Post> findByUserIdInWithPrivacyFilter(List<String> userIds, String currentUserId, Pageable pageable);
+    
+    @Query("{ $and: [ " +
+           "{ userId: ?0 }, " +
+           "{ $or: [ { privacy: 'PUBLIC' }, { privacy: 'PRIVATE', userId: ?0 } ] } " +
+           "] }")
+    Page<Post> findByUserIdWithPrivacy(String userId, Pageable pageable);
     
     @Query("{ $and: [ " +
            "{ $or: [ { privacy: 'PUBLIC' }, { userId: ?0 } ] }, " +

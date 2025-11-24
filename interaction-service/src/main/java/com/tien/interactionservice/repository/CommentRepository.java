@@ -17,6 +17,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
 
     List<Comment> findByParentCommentIdOrderByCreatedAtAsc(String parentCommentId);
 
+    List<Comment> findByParentCommentIdInOrderByCreatedAtAsc(List<String> parentCommentIds);
+
     Optional<Comment> findByIdAndUserId(String id, String userId);
 
     @Query("SELECT COUNT(c) FROM Comment c WHERE c.postId = :postId")

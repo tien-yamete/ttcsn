@@ -13,6 +13,7 @@ import com.tien.postservice.mapper.PostMapper;
 import com.tien.postservice.repository.PostRepository;
 import com.tien.postservice.repository.SavedPostRepository;
 import com.tien.postservice.repository.SharedPostRepository;
+import com.tien.postservice.repository.httpclient.InteractionClient;
 import com.tien.postservice.repository.httpclient.ProfileClient;
 import com.tien.postservice.repository.httpclient.SocialClient;
 import lombok.AccessLevel;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +43,7 @@ public class PostService {
     PostMapper postMapper;
     ProfileClient profileClient;
     SocialClient socialClient;
+    InteractionClient interactionClient;
     ImageUploadKafkaService imageUploadKafkaService;
 
     SavedPostRepository savedPostRepository;
@@ -144,15 +147,32 @@ public class PostService {
 
     public PageResponse<PostResponse> getSavedPosts(int page, int size) {
         String userId = getCurrentUserId();
-
         UserProfileResponse userProfileResponse = getUserProfile(userId);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("savedDate").descending());
         var pageData = savedPostRepository.findAllByUserId(userId, pageable);
 
+        List<String> postIds = pageData.getContent().stream()
+                .map(SavedPost::getPostId)
+                .toList();
+
+        if (postIds.isEmpty()) {
+            return PageResponse.<PostResponse>builder()
+                    .currentPage(page)
+                    .pageSize(pageData.getSize())
+                    .totalPages(pageData.getTotalPages())
+                    .totalElements(pageData.getTotalElements())
+                    .data(List.of())
+                    .build();
+        }
+
+        List<Post> posts = postRepository.findAllById(postIds);
+        var postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, post -> post));
+
         var postList = pageData.getContent().stream()
                 .map(savedPost -> {
-                    Post post = postRepository.findById(savedPost.getPostId()).orElse(null);
+                    Post post = postMap.get(savedPost.getPostId());
                     if (post == null) {
                         return null;
                     }
@@ -211,15 +231,19 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("sharedDate").descending());
         var pageData = sharedPostRepository.findAllByPostId(postId, pageable);
 
+        Post originalPost = postRepository.findById(postId).orElse(null);
+        if (originalPost == null) {
+            return PageResponse.<PostResponse>builder()
+                    .currentPage(page)
+                    .pageSize(pageData.getSize())
+                    .totalPages(pageData.getTotalPages())
+                    .totalElements(pageData.getTotalElements())
+                    .data(List.of())
+                    .build();
+        }
+
         var postList = pageData.getContent().stream()
-                .map(sharedPost -> {
-                    Post post = postRepository.findById(sharedPost.getPostId()).orElse(null);
-                    if (post == null) {
-                        return null;
-                    }
-                    return buildPostResponse(post, sharedPost.getUserId());
-                })
-                .filter(post -> post != null)
+                .map(sharedPost -> buildPostResponse(originalPost, sharedPost.getUserId()))
                 .toList();
 
         return PageResponse.<PostResponse>builder()
@@ -322,12 +346,9 @@ public class PostService {
         UserProfileResponse userProfile = getUserProfile(userId);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
-        var pageData = postRepository.findAllByUserId(userId, pageable);
+        var pageData = postRepository.findByUserIdWithPrivacy(userId, pageable);
         
-        // Nếu không phải owner, chỉ hiển thị PUBLIC posts
-        boolean isOwner = userId.equals(currentUserId);
         var postList = pageData.getContent().stream()
-                .filter(post -> isOwner || post.getPrivacy() == PrivacyType.PUBLIC)
                 .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
                     enrichPostResponse(postResponse, post, userProfile);
@@ -351,9 +372,27 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("sharedDate").descending());
         var pageData = sharedPostRepository.findAllByUserId(userId, pageable);
 
+        List<String> postIds = pageData.getContent().stream()
+                .map(SharedPost::getPostId)
+                .toList();
+
+        if (postIds.isEmpty()) {
+            return PageResponse.<PostResponse>builder()
+                    .currentPage(page)
+                    .pageSize(pageData.getSize())
+                    .totalPages(pageData.getTotalPages())
+                    .totalElements(pageData.getTotalElements())
+                    .data(List.of())
+                    .build();
+        }
+
+        List<Post> posts = postRepository.findAllById(postIds);
+        var postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, post -> post));
+
         var postList = pageData.getContent().stream()
                 .map(sharedPost -> {
-                    Post post = postRepository.findById(sharedPost.getPostId()).orElse(null);
+                    Post post = postMap.get(sharedPost.getPostId());
                     if (post == null) {
                         return null;
                     }
@@ -414,13 +453,10 @@ public class PostService {
     public PageResponse<PostResponse> getPublicPosts(int page, int size) {
         String userId = getCurrentUserId();
         
-        // Lấy danh sách blocked users và tạo mutable Set
         Set<String> blockedUserIds = new HashSet<>(getBlockedUserIds(userId));
-//        blockedUserIds.add(userId); // Loại trừ cả posts của chính user hiện tại
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         
-        // Chỉ lấy PUBLIC posts và loại trừ blocked users (bao gồm chính user)
         List<String> excludedUserIds = List.copyOf(blockedUserIds);
         var pageData = postRepository.findByPrivacyAndUserIdNotIn(
                 PrivacyType.PUBLIC, 
@@ -431,6 +467,65 @@ public class PostService {
                 .map(post -> buildPostResponse(post, post.getUserId()))
                 .toList();
 
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
+    public PageResponse<PostResponse> getFeed(int page, int size) {
+        String userId = getCurrentUserId();
+        
+        Set<String> friendIds = new HashSet<>();
+        Set<String> followingIds = new HashSet<>();
+        
+        try {
+            var friendIdsResponse = socialClient.getFriendIds();
+            if (friendIdsResponse != null && friendIdsResponse.getResult() != null) {
+                friendIds.addAll(friendIdsResponse.getResult());
+            }
+        } catch (Exception e) {
+            log.warn("Không thể lấy danh sách friends: {}", e.getMessage());
+        }
+        
+        try {
+            var followingIdsResponse = socialClient.getFollowingIds();
+            if (followingIdsResponse != null && followingIdsResponse.getResult() != null) {
+                followingIds.addAll(followingIdsResponse.getResult());
+            }
+        } catch (Exception e) {
+            log.warn("Không thể lấy danh sách following: {}", e.getMessage());
+        }
+        
+        Set<String> allowedUserIds = new HashSet<>(friendIds);
+        allowedUserIds.addAll(followingIds);
+        allowedUserIds.add(userId);
+        
+        Set<String> blockedUserIds = new HashSet<>(getBlockedUserIds(userId));
+        allowedUserIds.removeAll(blockedUserIds);
+        
+        if (allowedUserIds.isEmpty()) {
+            return PageResponse.<PostResponse>builder()
+                    .currentPage(page)
+                    .pageSize(size)
+                    .totalPages(0)
+                    .totalElements(0)
+                    .data(List.of())
+                    .build();
+        }
+        
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        
+        List<String> userIdsList = List.copyOf(allowedUserIds);
+        var pageData = postRepository.findByUserIdInWithPrivacyFilter(userIdsList, userId, pageable);
+        
+        var postList = pageData.getContent().stream()
+                .map(post -> buildPostResponse(post, post.getUserId()))
+                .toList();
+        
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
                 .pageSize(pageData.getSize())
@@ -475,16 +570,36 @@ public class PostService {
             postResponse.setUserAvatar(userProfile.getAvatar());
         }
         
-        // Set interaction stats
         String currentUserId = getCurrentUserId();
         postResponse.setIsSaved(savedPostRepository.existsByUserIdAndPostId(currentUserId, post.getId()));
         postResponse.setShareCount(sharedPostRepository.countByPostId(post.getId()));
         
-        // TODO: likeCount, commentCount, isLiked cần gọi interaction-service
-        // Tạm thời set null hoặc 0
-        postResponse.setLikeCount(0);
-        postResponse.setCommentCount(0);
-        postResponse.setIsLiked(false);
+        try {
+            var likeCountResponse = interactionClient.getLikeCountByPost(post.getId());
+            postResponse.setLikeCount(likeCountResponse != null && likeCountResponse.getResult() != null 
+                    ? likeCountResponse.getResult().intValue() : 0);
+        } catch (Exception e) {
+            log.warn("Không thể lấy like count từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
+            postResponse.setLikeCount(0);
+        }
+        
+        try {
+            var commentCountResponse = interactionClient.getCommentCountByPost(post.getId());
+            postResponse.setCommentCount(commentCountResponse != null && commentCountResponse.getResult() != null 
+                    ? commentCountResponse.getResult().intValue() : 0);
+        } catch (Exception e) {
+            log.warn("Không thể lấy comment count từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
+            postResponse.setCommentCount(0);
+        }
+        
+        try {
+            var isLikedResponse = interactionClient.isPostLiked(post.getId());
+            postResponse.setIsLiked(isLikedResponse != null && isLikedResponse.getResult() != null 
+                    ? isLikedResponse.getResult() : false);
+        } catch (Exception e) {
+            log.warn("Không thể kiểm tra isLiked từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
+            postResponse.setIsLiked(false);
+        }
     }
 
     private String getDisplayName(String firstName, String lastName, String username) {

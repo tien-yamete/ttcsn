@@ -10,5 +10,11 @@ import java.util.List;
 public interface SocialClient {
     @GetMapping("/blocks/ids")
     ApiResponse<List<String>> getBlockedUserIds();
+
+    @GetMapping("/friendships/internal/friend-ids")
+    ApiResponse<List<String>> getFriendIds();
+
+    @GetMapping("/follows/internal/following-ids")
+    ApiResponse<List<String>> getFollowingIds();
 }
 
