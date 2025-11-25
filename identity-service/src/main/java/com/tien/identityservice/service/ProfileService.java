@@ -54,11 +54,16 @@ public class ProfileService {
         }
         
         // Đảm bảo firstName và lastName được set vào profile
+        // firstName có thể null, nhưng lastName nếu không có thì set bằng username
         if (request.getFirstName() != null && !request.getFirstName().trim().isEmpty()) {
             profileRequest.setFirstName(request.getFirstName().trim());
         }
+        
         if (request.getLastName() != null && !request.getLastName().trim().isEmpty()) {
             profileRequest.setLastName(request.getLastName().trim());
+        } else {
+            // Nếu không có lastName, set bằng username
+            profileRequest.setLastName(request.getUsername());
         }
         
         log.info("Creating profile for userId: {}, firstName: {}, lastName: {}, username: {}", 

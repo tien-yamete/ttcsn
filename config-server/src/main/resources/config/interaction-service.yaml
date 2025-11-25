@@ -3,6 +3,13 @@ server:
   servlet:
     context-path: /interaction
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
 spring:
   application:
     name: interaction-service

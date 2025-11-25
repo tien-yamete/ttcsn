@@ -1,9 +1,11 @@
 package com.tien.postservice.dto.request;
 
+import java.util.List;
+
+import com.tien.postservice.entity.PrivacyType;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.util.List;
 
 @Data
 @Builder
@@ -12,5 +14,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PostRequest {
     String content;
-    List<String> imageUrls;
+    List<String> imageUrls; // URLs của ảnh đã được upload trước
+    PrivacyType privacy;
+    String groupId;
 }

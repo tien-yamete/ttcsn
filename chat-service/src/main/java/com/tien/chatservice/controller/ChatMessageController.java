@@ -1,17 +1,9 @@
 package com.tien.chatservice.controller;
 
-import com.tien.chatservice.dto.ApiResponse;
-import com.tien.chatservice.dto.PageResponse;
-import com.tien.chatservice.dto.request.ChatMessageRequest;
-import com.tien.chatservice.dto.request.UpdateMessageRequest;
-import com.tien.chatservice.dto.response.ChatMessageResponse;
-import com.tien.chatservice.dto.response.ReadReceiptResponse;
-import com.tien.chatservice.service.ChatMessageService;
-import com.tien.chatservice.service.ReadReceiptService;
+import java.util.List;
+
 import jakarta.validation.Valid;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,27 +14,36 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.tien.chatservice.dto.ApiResponse;
+import com.tien.chatservice.dto.PageResponse;
+import com.tien.chatservice.dto.request.ChatMessageRequest;
+import com.tien.chatservice.dto.request.UpdateMessageRequest;
+import com.tien.chatservice.dto.response.ChatMessageResponse;
+import com.tien.chatservice.dto.response.ReadReceiptResponse;
+import com.tien.chatservice.service.ChatMessageService;
+import com.tien.chatservice.service.ReadReceiptService;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("messages")
+@RequestMapping("/messages")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatMessageController {
     ChatMessageService chatMessageService;
     ReadReceiptService readReceiptService;
 
-    @PostMapping("/create")
-    ApiResponse<ChatMessageResponse> create(
-            @RequestBody @Valid ChatMessageRequest request) {
+    @PostMapping
+    ApiResponse<ChatMessageResponse> create(@RequestBody @Valid ChatMessageRequest request) {
         return ApiResponse.<ChatMessageResponse>builder()
                 .result(chatMessageService.create(request))
                 .build();
     }
 
     @GetMapping
-    ApiResponse<List<ChatMessageResponse>> getMessages(
-            @RequestParam("conversationId") String conversationId) {
+    ApiResponse<List<ChatMessageResponse>> getMessages(@RequestParam("conversationId") String conversationId) {
         return ApiResponse.<List<ChatMessageResponse>>builder()
                 .result(chatMessageService.getMessages(conversationId))
                 .build();
@@ -66,9 +67,7 @@ public class ChatMessageController {
     }
 
     @PutMapping("/{id}")
-    ApiResponse<ChatMessageResponse> update(
-            @PathVariable String id,
-            @RequestBody @Valid UpdateMessageRequest request) {
+    ApiResponse<ChatMessageResponse> update(@PathVariable String id, @RequestBody @Valid UpdateMessageRequest request) {
         return ApiResponse.<ChatMessageResponse>builder()
                 .result(chatMessageService.update(id, request))
                 .build();
@@ -88,8 +87,7 @@ public class ChatMessageController {
     }
 
     @GetMapping("/{id}/read-receipts")
-    ApiResponse<List<ReadReceiptResponse>> getReadReceipts(
-            @PathVariable String id) {
+    ApiResponse<List<ReadReceiptResponse>> getReadReceipts(@PathVariable String id) {
         return ApiResponse.<List<ReadReceiptResponse>>builder()
                 .result(readReceiptService.getReadReceipts(id))
                 .build();

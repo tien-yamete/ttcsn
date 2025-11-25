@@ -34,7 +34,6 @@ public class ProfileService {
 
     ImageUploadKafkaService imageUploadKafkaService;
     public ProfileResponse createProfile(ProfileCreationRequest request) {
-        // Check if profile already exists for this userId (idempotent operation)
         var existingProfile = profileRepository.findByUserId(request.getUserId());
         if (existingProfile.isPresent()) {
             log.info("Profile already exists for userId: {}", request.getUserId());
@@ -54,7 +53,6 @@ public class ProfileService {
         return profileMapper.toProfileResponse(userProfile);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     public List<ProfileResponse> getAllProfiles() {
         var profiles = profileRepository.findAll();
 

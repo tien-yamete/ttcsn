@@ -155,10 +155,36 @@ public class LikeService {
         LikeResponse response = likeMapper.toLikeResponse(like);
         
         // Enrich các field không thể map
-        response.setUsername(profile != null ? profile.getUsername() : null);
-        response.setUserAvatar(profile != null ? profile.getAvatar() : null);
+        // Hiển thị họ + tên thay vì username
+        if (profile != null) {
+            String displayName = getDisplayName(profile.getFirstName(), profile.getLastName(), profile.getUsername());
+            response.setUsername(displayName);
+            response.setUserAvatar(profile.getAvatar());
+        } else {
+            response.setUsername(null);
+            response.setUserAvatar(null);
+        }
         
         return response;
+    }
+
+    private String getDisplayName(String firstName, String lastName, String username) {
+        // Nếu có cả firstName và lastName, hiển thị "firstName lastName"
+        if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
+            return (firstName.trim() + " " + lastName.trim()).trim();
+        }
+        // Nếu chỉ có lastName, hiển thị lastName (thường là username)
+        else if (lastName != null && !lastName.trim().isEmpty()) {
+            return lastName.trim();
+        }
+        // Nếu chỉ có firstName, hiển thị firstName
+        else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        }
+        // Fallback to username
+        else {
+            return username != null ? username : "";
+        }
     }
 
     private void validatePostExists(String postId) {

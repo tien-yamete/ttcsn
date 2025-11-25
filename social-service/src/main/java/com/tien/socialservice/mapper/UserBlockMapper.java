@@ -1,8 +1,9 @@
 package com.tien.socialservice.mapper;
 
+import org.mapstruct.Mapper;
+
 import com.tien.socialservice.dto.response.UserBlockResponse;
 import com.tien.socialservice.entity.UserBlock;
-import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface UserBlockMapper {

@@ -48,12 +48,13 @@ public class OAuth2Service {
         }
 
         // Create new user from OAuth2 provider
-        String[] nameParts = name != null && !name.isEmpty() ? name.split(" ", 2) : new String[] {"", ""};
-        String firstName = nameParts.length > 0 ? nameParts[0] : "";
-        String lastName = nameParts.length > 1 ? nameParts[1] : "";
-
-        // Generate unique username
+        // Generate unique username first
         String username = generateUniqueUsername(email);
+        
+        // Parse name from OAuth provider
+        String[] nameParts = name != null && !name.isEmpty() ? name.split(" ", 2) : new String[] {"", ""};
+        String firstName = nameParts.length > 0 && !nameParts[0].isEmpty() ? nameParts[0] : null;
+        String lastName = nameParts.length > 1 && !nameParts[1].isEmpty() ? nameParts[1] : username;
 
         User user = User.builder()
                 .email(email)

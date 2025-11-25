@@ -3,6 +3,13 @@ server:
   servlet:
     context-path: /identity
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
 spring:
   datasource:
     url: ${DBMS_CONNECTION:jdbc:mysql://localhost:3306/identity_service?createDatabaseIfNotExist=true}

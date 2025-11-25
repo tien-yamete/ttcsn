@@ -4,4 +4,3 @@ public enum PrivacyType {
     PUBLIC,
     PRIVATE
 }
-

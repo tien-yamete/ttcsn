@@ -1,16 +1,18 @@
 package com.tien.chatservice.dto.request;
 
-import com.tien.chatservice.constant.TypeConversation;
+import java.util.List;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import com.tien.chatservice.constant.TypeConversation;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.util.List;
 
 @Data
 @Builder

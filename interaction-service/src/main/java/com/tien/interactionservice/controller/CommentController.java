@@ -38,6 +38,25 @@ public class CommentController {
                 .build();
     }
 
+    @GetMapping("/{id}")
+    ApiResponse<CommentResponse> getCommentById(@PathVariable String id) {
+        return ApiResponse.<CommentResponse>builder()
+                .message("Lấy comment thành công")
+                .result(commentService.getCommentById(id))
+                .build();
+    }
+
+    @GetMapping("/{id}/replies")
+    ApiResponse<PageResponse<CommentResponse>> getReplies(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.<PageResponse<CommentResponse>>builder()
+                .message("Lấy danh sách replies thành công")
+                .result(commentService.getRepliesByCommentId(id, page, size))
+                .build();
+    }
+
     @PutMapping("/{id}")
     ApiResponse<CommentResponse> updateComment(
             @PathVariable String id,
@@ -53,14 +72,6 @@ public class CommentController {
         commentService.deleteComment(id);
         return ApiResponse.<Void>builder()
                 .message("Xóa comment thành công")
-                .build();
-    }
-
-    @GetMapping("/post/{postId}/count")
-    ApiResponse<Long> getCommentCountByPost(@PathVariable String postId) {
-        return ApiResponse.<Long>builder()
-                .message("Lấy số lượng comments thành công")
-                .result(commentService.getCommentCountByPost(postId))
                 .build();
     }
 }

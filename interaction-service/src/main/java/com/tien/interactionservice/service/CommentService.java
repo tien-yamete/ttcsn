@@ -183,14 +183,20 @@ public class CommentService {
     }
 
     private String getDisplayName(String firstName, String lastName, String username) {
+        // Nếu có cả firstName và lastName, hiển thị "firstName lastName"
         if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
             return (firstName.trim() + " " + lastName.trim()).trim();
-        } else if (firstName != null && !firstName.trim().isEmpty()) {
-            return firstName.trim();
-        } else if (lastName != null && !lastName.trim().isEmpty()) {
+        }
+        // Nếu chỉ có lastName, hiển thị lastName (thường là username)
+        else if (lastName != null && !lastName.trim().isEmpty()) {
             return lastName.trim();
-        } else {
-            // Fallback to username if no first/last name
+        }
+        // Nếu chỉ có firstName, hiển thị firstName
+        else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        }
+        // Fallback to username
+        else {
             return username != null ? username : "";
         }
     }
@@ -234,6 +240,49 @@ public class CommentService {
 
     public long getCommentCountByPost(String postId) {
         return commentRepository.countByPostId(postId);
+    }
+
+    public CommentResponse getCommentById(String commentId) {
+        String userId = getCurrentUserId();
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
+        return buildCommentResponse(comment, userId);
+    }
+
+    public PageResponse<CommentResponse> getRepliesByCommentId(String commentId, int page, int size) {
+        String userId = getCurrentUserId();
+        
+        // Verify comment exists
+        Comment parentComment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
+        
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").ascending());
+        
+        // Get all replies for this comment
+        List<Comment> allReplies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
+        
+        // Manual pagination since we don't have Page query
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, allReplies.size());
+        List<Comment> paginatedReplies = start < allReplies.size() 
+                ? allReplies.subList(start, end) 
+                : List.of();
+        
+        List<CommentResponse> replyResponses = paginatedReplies.stream()
+                .map(reply -> buildCommentResponse(reply, userId))
+                .collect(Collectors.toList());
+        
+        int totalPages = (int) Math.ceil((double) allReplies.size() / size);
+        
+        return PageResponse.<CommentResponse>builder()
+                .content(replyResponses)
+                .page(page)
+                .size(size)
+                .totalElements((long) allReplies.size())
+                .totalPages(totalPages)
+                .hasNext(end < allReplies.size())
+                .hasPrevious(page > 1)
+                .build();
     }
 
     private String getCurrentUserId() {

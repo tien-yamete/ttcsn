@@ -1,20 +1,18 @@
 package com.tien.socialservice.configuration;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 /**
  * SecurityConfig: Cấu hình bảo mật cho toàn bộ ứng dụng.
@@ -32,8 +30,10 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     // Các endpoint public không yêu cầu xác thực
-    private final String[] PUBLIC_ENDPOINTS = {
-
+    private final String[] PUBLIC_ENDPOINTS = {"/internal/**"};
+    // Swagger UI endpoints
+    private final String[] SWAGGER_ENDPOINTS = {
+        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
     };
 
     CustomJwtDecoder customJwtDecoder;
@@ -42,11 +42,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         // Cấu hình phân quyền cho các request
+        // permitAll vẫn decode JWT nếu có, chỉ bỏ qua authorization check
         httpSecurity.authorizeHttpRequests(requests -> requests.requestMatchers(PUBLIC_ENDPOINTS)
+                .permitAll()
+                .requestMatchers(SWAGGER_ENDPOINTS)
                 .permitAll()
                 .anyRequest()
                 .authenticated());
         // Cấu hình Resource Server với JWT
+        // JWT vẫn được decode ngay cả với permitAll endpoints
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))

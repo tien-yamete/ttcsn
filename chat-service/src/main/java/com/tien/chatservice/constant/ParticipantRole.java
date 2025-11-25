@@ -4,4 +4,3 @@ public enum ParticipantRole {
     ADMIN,
     MEMBER
 }
-

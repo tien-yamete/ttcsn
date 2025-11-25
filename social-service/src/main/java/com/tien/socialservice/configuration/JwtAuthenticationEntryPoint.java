@@ -1,20 +1,22 @@
 package com.tien.socialservice.configuration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tien.socialservice.dto.ApiResponse;
-import com.tien.socialservice.exception.ErrorCode;
-import jakarta.servlet.ServletException;
+import java.io.IOException;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tien.socialservice.dto.ApiResponse;
+import com.tien.socialservice.exception.ErrorCode;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 /**
  * JwtAuthenticationEntryPoint: Xử lý khi request chưa được xác thực hoặc token không hợp lệ.
@@ -33,7 +35,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(
             HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
-            throws IOException{
+            throws IOException {
 
         ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
 

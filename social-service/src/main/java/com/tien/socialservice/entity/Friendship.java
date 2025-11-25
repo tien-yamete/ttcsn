@@ -1,13 +1,14 @@
 package com.tien.socialservice.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "friendships",uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "friend_id"}))
+@Table(name = "friendships", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "friend_id"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

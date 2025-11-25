@@ -1,11 +1,12 @@
 package com.tien.chatservice.repository;
 
-import com.tien.chatservice.entity.ReadReceipt;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.tien.chatservice.entity.ReadReceipt;
 
 @Repository
 public interface ReadReceiptRepository extends MongoRepository<ReadReceipt, String> {

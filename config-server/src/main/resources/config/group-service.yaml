@@ -1,0 +1,23 @@
+server:
+  port: 8089
+  servlet:
+    context-path: /group
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+spring:
+  application:
+    name: group-service
+  data:
+    mongodb:
+      uri: mongodb://root:814362@localhost:27017/group-service?authSource=admin
+app:
+  services:
+    profile:
+      url: http://localhost:8082/profile
+

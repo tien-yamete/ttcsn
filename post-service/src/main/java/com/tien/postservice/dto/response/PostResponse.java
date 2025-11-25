@@ -1,12 +1,12 @@
 package com.tien.postservice.dto.response;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.time.Instant;
 import java.util.List;
 
 import com.tien.postservice.entity.PrivacyType;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 @Data
 @Builder
@@ -24,7 +24,11 @@ public class PostResponse {
     PrivacyType privacy;
     Instant createdDate;
     Instant modifiedDate;
-    
+
+    // Group info
+    String groupId;
+    String groupName;
+
     // Interaction stats
     Integer likeCount;
     Integer commentCount;

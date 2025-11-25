@@ -2,6 +2,14 @@ server:
   port: 8084
   servlet:
     context-path: /post
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
 spring:
   application:
     name: post-service
@@ -27,3 +35,5 @@ app:
       url: http://localhost:8087/social
     interaction:
       url: http://localhost:8088/interaction
+    group:
+      url: http://localhost:8089/group

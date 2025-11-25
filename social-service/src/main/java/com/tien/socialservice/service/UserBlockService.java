@@ -1,5 +1,13 @@
 package com.tien.socialservice.service;
 
+import java.util.List;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tien.socialservice.dto.PageResponse;
 import com.tien.socialservice.dto.response.UserBlockResponse;
 import com.tien.socialservice.entity.UserBlock;
@@ -9,17 +17,11 @@ import com.tien.socialservice.mapper.UserBlockMapper;
 import com.tien.socialservice.repository.FollowRepository;
 import com.tien.socialservice.repository.FriendshipRepository;
 import com.tien.socialservice.repository.UserBlockRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Slf4j
@@ -36,31 +38,25 @@ public class UserBlockService {
 
     @Transactional
     public UserBlockResponse blockUser(String blockerId, String blockedId) {
-        if(blockerId.equals(blockedId)){
+        if (blockerId.equals(blockedId)) {
             throw new AppException(ErrorCode.CANNOT_BLOCK_SELF);
         }
 
         // Check if already blocked
-        if(userBlockRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId)){
+        if (userBlockRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId)) {
             throw new AppException(ErrorCode.USER_ALREADY_BLOCKED);
         }
 
-        //remove follow if exists
-        followRepository.findByFollowerIdAndFollowingId(blockerId, blockedId)
-                .ifPresent(followRepository::delete);
-        followRepository.findByFollowerIdAndFollowingId(blockedId, blockerId)
-                .ifPresent(followRepository::delete);
+        // remove follow if exists
+        followRepository.findByFollowerIdAndFollowingId(blockerId, blockedId).ifPresent(followRepository::delete);
+        followRepository.findByFollowerIdAndFollowingId(blockedId, blockerId).ifPresent(followRepository::delete);
 
-        //remove friendship if exists
-        friendshipRepository.findByUserIdAndFriendId(blockerId, blockedId)
-                .ifPresent(friendshipRepository::delete);
-        friendshipRepository.findByUserIdAndFriendId(blockedId, blockerId)
-                .ifPresent(friendshipRepository::delete);
+        // remove friendship if exists
+        friendshipRepository.findByUserIdAndFriendId(blockerId, blockedId).ifPresent(friendshipRepository::delete);
+        friendshipRepository.findByUserIdAndFriendId(blockedId, blockerId).ifPresent(friendshipRepository::delete);
 
-        UserBlock userBlock = UserBlock.builder()
-                .blockedId(blockedId)
-                .blockerId(blockerId)
-                .build();
+        UserBlock userBlock =
+                UserBlock.builder().blockedId(blockedId).blockerId(blockerId).build();
 
         userBlock = userBlockRepository.save(userBlock);
 
@@ -71,7 +67,8 @@ public class UserBlockService {
 
     @Transactional
     public void unblockUser(String blockerId, String blockedId) {
-        UserBlock userBlock = userBlockRepository.findByBlockerIdAndBlockedId(blockerId, blockedId)
+        UserBlock userBlock = userBlockRepository
+                .findByBlockerIdAndBlockedId(blockerId, blockedId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_BLOCKED));
 
         userBlockRepository.delete(userBlock);
@@ -80,7 +77,7 @@ public class UserBlockService {
     }
 
     public PageResponse<UserBlockResponse> getBlockedUsers(String userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page-1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
 
         var PageData = userBlockRepository.findBlockedUsersByUserId(userId, pageable);
 

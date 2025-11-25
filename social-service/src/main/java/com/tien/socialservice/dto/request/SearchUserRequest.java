@@ -11,4 +11,3 @@ import lombok.experimental.FieldDefaults;
 public class SearchUserRequest {
     String keyword;
 }
-

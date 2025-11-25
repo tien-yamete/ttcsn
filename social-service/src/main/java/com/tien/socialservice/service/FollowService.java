@@ -1,5 +1,13 @@
 package com.tien.socialservice.service;
 
+import java.util.List;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tien.socialservice.dto.PageResponse;
 import com.tien.socialservice.dto.response.FollowResponse;
 import com.tien.socialservice.dto.response.UserSocialInfoResponse;
@@ -10,17 +18,11 @@ import com.tien.socialservice.mapper.FollowMapper;
 import com.tien.socialservice.repository.FollowRepository;
 import com.tien.socialservice.repository.FriendshipRepository;
 import com.tien.socialservice.repository.UserBlockRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -37,22 +39,20 @@ public class FollowService {
 
     @Transactional
     public FollowResponse followUser(String followerId, String followingId) {
-        if(followerId.equals(followingId)){
+        if (followerId.equals(followingId)) {
             throw new AppException(ErrorCode.CANNOT_FOLLOW_SELF);
         }
-        if(followRepository.existsByFollowerIdAndFollowingId(followerId, followingId)){
+        if (followRepository.existsByFollowerIdAndFollowingId(followerId, followingId)) {
             throw new AppException(ErrorCode.FOLLOW_ALREADY_EXISTS);
         }
 
-        //check block
-        if(userBlockRepository.isBlocked(followerId, followingId)){
+        // check block
+        if (userBlockRepository.isBlocked(followerId, followingId)) {
             throw new AppException(ErrorCode.USER_ALREADY_BLOCKED);
         }
 
-        Follow follow = Follow.builder()
-                .followerId(followerId)
-                .followingId(followingId)
-                .build();
+        Follow follow =
+                Follow.builder().followerId(followerId).followingId(followingId).build();
 
         follow = followRepository.save(follow);
         log.info("User {} followed user {}", followerId, followingId);
@@ -62,7 +62,8 @@ public class FollowService {
 
     @Transactional
     public void unfollowUser(String followerId, String followingId) {
-        Follow follow = followRepository.findByFollowerIdAndFollowingId(followerId, followingId)
+        Follow follow = followRepository
+                .findByFollowerIdAndFollowingId(followerId, followingId)
                 .orElseThrow(() -> new AppException(ErrorCode.FOLLOW_NOT_FOUND));
 
         followRepository.delete(follow);
@@ -114,7 +115,7 @@ public class FollowService {
         boolean isFriend = false;
         boolean isBlocked = false;
 
-        if(currentUserId != null && !currentUserId.equals(userId)){
+        if (currentUserId != null && !currentUserId.equals(userId)) {
             isFollowing = followRepository.existsByFollowerIdAndFollowingId(currentUserId, userId);
             isFriend = friendshipRepository.areFriends(currentUserId, userId);
             isBlocked = userBlockRepository.isBlocked(currentUserId, userId);

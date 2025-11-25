@@ -1,5 +1,6 @@
 package com.tien.interactionservice.repository.httpclient;
 
+import com.tien.interactionservice.configuration.FeignConfig;
 import com.tien.interactionservice.dto.ApiResponse;
 import com.tien.interactionservice.dto.response.ProfileResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -11,7 +12,8 @@ import java.util.List;
 
 @FeignClient(
         name = "profile-service",
-        url = "${app.services.profile.url}")
+        url = "${app.services.profile.url}",
+        configuration = FeignConfig.class)
 public interface ProfileClient {
     @GetMapping("/internal/users/{userId}")
     ApiResponse<ProfileResponse> getProfile(@PathVariable String userId);

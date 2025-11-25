@@ -1,5 +1,14 @@
 package com.tien.socialservice.service;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tien.socialservice.dto.PageResponse;
 import com.tien.socialservice.dto.request.SearchUserRequest;
 import com.tien.socialservice.dto.response.FriendshipResponse;
@@ -12,18 +21,11 @@ import com.tien.socialservice.mapper.FriendshipMapper;
 import com.tien.socialservice.repository.FriendshipRepository;
 import com.tien.socialservice.repository.UserBlockRepository;
 import com.tien.socialservice.repository.httpclient.ProfileClient;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Optional;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -40,12 +42,12 @@ public class FriendshipService {
 
     @Transactional
     public FriendshipResponse sendFriendRequest(String userId, String friendId) {
-        if(userId.equals(friendId)) {
+        if (userId.equals(friendId)) {
             throw new AppException(ErrorCode.CANNOT_FRIEND_SELF);
         }
         // Kiểm tra xem đã có yêu cầu kết bạn nào tồn tại giữa hai người dùng chưa
-        if(friendshipRepository.existsByUserIdAndFriendId(userId, friendId)
-        || friendshipRepository.existsByUserIdAndFriendId(friendId, userId)) {
+        if (friendshipRepository.existsByUserIdAndFriendId(userId, friendId)
+                || friendshipRepository.existsByUserIdAndFriendId(friendId, userId)) {
             throw new AppException(ErrorCode.FRIENDSHIP_ALREADY_EXISTS);
         }
 
@@ -68,7 +70,8 @@ public class FriendshipService {
 
     @Transactional
     public FriendshipResponse acceptFriendRequest(String userId, String friendId) {
-        Friendship friendship = friendshipRepository.findByUserIdAndFriendIdAndStatus(friendId, userId, FriendshipStatus.PENDING)
+        Friendship friendship = friendshipRepository
+                .findByUserIdAndFriendIdAndStatus(friendId, userId, FriendshipStatus.PENDING)
                 .orElseThrow(() -> new AppException(ErrorCode.FRIEND_REQUEST_NOT_PENDING));
 
         friendship.setStatus(FriendshipStatus.ACCEPTED);
@@ -81,7 +84,8 @@ public class FriendshipService {
 
     @Transactional
     public void rejectFriendRequest(String userId, String friendId) {
-        Friendship friendship = friendshipRepository.findByUserIdAndFriendIdAndStatus(friendId, userId, FriendshipStatus.PENDING)
+        Friendship friendship = friendshipRepository
+                .findByUserIdAndFriendIdAndStatus(friendId, userId, FriendshipStatus.PENDING)
                 .orElseThrow(() -> new AppException(ErrorCode.FRIEND_REQUEST_NOT_PENDING));
 
         friendshipRepository.delete(friendship);
@@ -91,19 +95,20 @@ public class FriendshipService {
 
     @Transactional
     public void removeFriend(String userId, String friendId) {
-        if(!friendshipRepository.areFriends(userId, friendId)) {
+        if (!friendshipRepository.areFriends(userId, friendId)) {
             throw new AppException(ErrorCode.FRIENDSHIP_NOT_FOUND);
         }
 
-        friendshipRepository.deleteFriendship(userId ,friendId);
+        friendshipRepository.deleteFriendship(userId, friendId);
 
         log.info("User {} removed friend {}", userId, friendId);
     }
 
     public PageResponse<FriendshipResponse> getFriends(String userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page-1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
 
-        var pageData = friendshipRepository.findFriendshipsByUserIdAndStatus(userId, FriendshipStatus.ACCEPTED, pageable);
+        var pageData =
+                friendshipRepository.findFriendshipsByUserIdAndStatus(userId, FriendshipStatus.ACCEPTED, pageable);
 
         var friendshipResponses = pageData.map(friendshipMapper::toFriendshipResponse);
 
@@ -117,7 +122,7 @@ public class FriendshipService {
     }
 
     public PageResponse<FriendshipResponse> getSentFriendRequests(String userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page-1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
 
         var pageData = friendshipRepository.findSentFriendRequests(userId, FriendshipStatus.PENDING, pageable);
 
@@ -133,7 +138,7 @@ public class FriendshipService {
     }
 
     public PageResponse<FriendshipResponse> getReceivedFriendRequests(String userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page-1, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
 
         var pageData = friendshipRepository.findReceivedFriendRequests(userId, FriendshipStatus.PENDING, pageable);
 
@@ -159,9 +164,8 @@ public class FriendshipService {
             blockedUserIds.add(userId); // Loại trừ chính user hiện tại
 
             // Tìm kiếm users từ profile service
-            SearchUserRequest request = SearchUserRequest.builder()
-                    .keyword(keyword.trim())
-                    .build();
+            SearchUserRequest request =
+                    SearchUserRequest.builder().keyword(keyword.trim()).build();
 
             var response = profileClient.searchUsers(request);
             var profiles = response.getResult();

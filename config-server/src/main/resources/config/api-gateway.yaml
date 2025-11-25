@@ -9,26 +9,10 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      # Các cấu hình chung còn lại của gateway để nguyên ở đây nếu không bị cảnh báo
       default-filters:
         - RemoveRequestHeader=Cookie
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_UNIQUE
-
-      server:
-        webflux:
-          httpclient:
-            connect-timeout: 5000
-            response-timeout: 10s
-
-          globalcors:
-            cors-configurations:
-              "[/**]":
-                allowed-origins: "*"
-                allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-                allowed-headers: "*"
-                allow-credentials: false
-
-          routes:
+      routes:
             # ========== IDENTITY ==========
             - id: identity_service
               uri: http://localhost:8081
@@ -40,9 +24,16 @@ spring:
             - id: profile_service
               uri: http://localhost:8082
               predicates:
-                - Path=${app.api-prefix}/profile/users/**
+                - Path=${app.api-prefix}/profile/**
               filters:
                 - StripPrefix=2
+            # ========== PROFILE - Internal endpoints (for direct service calls) ==========
+            - id: profile_service_internal
+              uri: http://localhost:8082
+              predicates:
+                - Path=/profile/internal/**
+              filters:
+                - StripPrefix=1
             # ========== NOTIFICATION ==========
             - id: notification_service
               uri: http://localhost:8083
@@ -76,6 +67,20 @@ spring:
               uri: http://localhost:8087
               predicates:
                 - Path=${app.api-prefix}/social/**
+              filters:
+                - StripPrefix=2
+            # ========== INTERACTION ==========
+            - id: interaction_service
+              uri: http://localhost:8088
+              predicates:
+                - Path=${app.api-prefix}/interaction/**
+              filters:
+                - StripPrefix=2
+            # ========== GROUP ==========
+            - id: group_service
+              uri: http://localhost:8089
+              predicates:
+                - Path=${app.api-prefix}/group/**
               filters:
                 - StripPrefix=2
 

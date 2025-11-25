@@ -1,5 +1,18 @@
 package com.tien.postservice.service;
 
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.tien.postservice.dto.PageResponse;
 import com.tien.postservice.dto.response.PostResponse;
 import com.tien.postservice.dto.response.UserProfileResponse;
@@ -13,25 +26,15 @@ import com.tien.postservice.mapper.PostMapper;
 import com.tien.postservice.repository.PostRepository;
 import com.tien.postservice.repository.SavedPostRepository;
 import com.tien.postservice.repository.SharedPostRepository;
+import com.tien.postservice.repository.httpclient.GroupClient;
 import com.tien.postservice.repository.httpclient.InteractionClient;
 import com.tien.postservice.repository.httpclient.ProfileClient;
 import com.tien.postservice.repository.httpclient.SocialClient;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,20 +47,45 @@ public class PostService {
     ProfileClient profileClient;
     SocialClient socialClient;
     InteractionClient interactionClient;
+    GroupClient groupClient;
     ImageUploadKafkaService imageUploadKafkaService;
 
     SavedPostRepository savedPostRepository;
 
     SharedPostRepository sharedPostRepository;
 
-    public PostResponse createPost(String content, List<MultipartFile> images, PrivacyType privacy) {
+    public PostResponse createPost(String content, List<MultipartFile> images, PrivacyType privacy, String groupId) {
+        return createPostInternal(content, images, null, privacy, groupId);
+    }
+
+    public PostResponse createPostWithUrls(
+            String content, List<String> imageUrls, PrivacyType privacy, String groupId) {
+        return createPostInternal(content, null, imageUrls, privacy, groupId);
+    }
+
+    private PostResponse createPostInternal(
+            String content, List<MultipartFile> images, List<String> imageUrls, PrivacyType privacy, String groupId) {
         String userId = getCurrentUserId();
 
         boolean hasContent = content != null && !content.trim().isEmpty();
         boolean hasImages = images != null && !images.isEmpty();
+        boolean hasImageUrls = imageUrls != null && !imageUrls.isEmpty();
 
-        if (!hasContent && !hasImages) {
+        if (!hasContent && !hasImages && !hasImageUrls) {
             throw new AppException(ErrorCode.POST_EMPTY);
+        }
+
+        // Nếu có groupId, kiểm tra quyền đăng bài trong group
+        if (groupId != null && !groupId.trim().isEmpty()) {
+            try {
+                var canPostResponse = groupClient.canPost(groupId);
+                if (canPostResponse == null || canPostResponse.getResult() == null || !canPostResponse.getResult()) {
+                    throw new AppException(ErrorCode.UNAUTHORIZED);
+                }
+            } catch (Exception e) {
+                log.error("Error checking post permission for group: {}", groupId, e);
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
         }
 
         // Default privacy is PUBLIC if not specified
@@ -69,34 +97,41 @@ public class PostService {
                 .content(content)
                 .userId(userId)
                 .privacy(privacy)
+                .groupId(groupId != null && !groupId.trim().isEmpty() ? groupId : null)
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();
 
         post = postRepository.save(post);
 
-        List<String> imageUrls = List.of();
-        if (images != null && !images.isEmpty()) {
-            try{
-                imageUrls = imageUploadKafkaService.uploadPostImages(images, userId, post.getId());
-
-                post.setImageUrls(imageUrls);
+        // Nếu có images (multipart), upload chúng
+        if (hasImages) {
+            try {
+                List<String> uploadedImageUrls = imageUploadKafkaService.uploadPostImages(images, userId, post.getId());
+                post.setImageUrls(uploadedImageUrls);
                 post.setModifiedDate(Instant.now());
                 post = postRepository.save(post);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 log.error("Failed to upload images for post: {}", post.getId(), e);
             }
         }
+        // Nếu có imageUrls (đã upload trước), sử dụng trực tiếp
+        else if (hasImageUrls) {
+            post.setImageUrls(imageUrls);
+            post.setModifiedDate(Instant.now());
+            post = postRepository.save(post);
+        }
+
         return buildPostResponse(post, userId);
     }
 
-    public PageResponse<PostResponse> getMyPosts(int page, int size){
+    public PageResponse<PostResponse> getMyPosts(int page, int size) {
         String userId = getCurrentUserId();
 
         UserProfileResponse userProfile = getUserProfile(userId);
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findAllByUserId(userId, pageable);
 
         var postList = pageData.getContent().stream()
@@ -116,29 +151,26 @@ public class PostService {
                 .build();
     }
 
-    public void savePost(String postId){
+    public void savePost(String postId) {
         String userId = getCurrentUserId();
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
-        if(savedPostRepository.existsByUserIdAndPostId(userId, postId)){
+        if (savedPostRepository.existsByUserIdAndPostId(userId, postId)) {
             throw new AppException(ErrorCode.POST_ALREADY_SAVED);
         }
 
-        SavedPost savedPost = SavedPost.builder()
-                .userId(userId)
-                .postId(postId)
-                .build();
+        SavedPost savedPost = SavedPost.builder().userId(userId).postId(postId).build();
 
         savedPostRepository.save(savedPost);
         log.info("Saved post: {}", savedPost);
     }
 
-    public void unsavePost(String postId){
+    public void unsavePost(String postId) {
         String userId = getCurrentUserId();
 
-        SavedPost savedPost = savedPostRepository.findByUserIdAndPostId(userId, postId)
+        SavedPost savedPost = savedPostRepository
+                .findByUserIdAndPostId(userId, postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_SAVED));
 
         savedPostRepository.delete(savedPost);
@@ -152,9 +184,8 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("savedDate").descending());
         var pageData = savedPostRepository.findAllByUserId(userId, pageable);
 
-        List<String> postIds = pageData.getContent().stream()
-                .map(SavedPost::getPostId)
-                .toList();
+        List<String> postIds =
+                pageData.getContent().stream().map(SavedPost::getPostId).toList();
 
         if (postIds.isEmpty()) {
             return PageResponse.<PostResponse>builder()
@@ -167,8 +198,7 @@ public class PostService {
         }
 
         List<Post> posts = postRepository.findAllById(postIds);
-        var postMap = posts.stream()
-                .collect(Collectors.toMap(Post::getId, post -> post));
+        var postMap = posts.stream().collect(Collectors.toMap(Post::getId, post -> post));
 
         var postList = pageData.getContent().stream()
                 .map(savedPost -> {
@@ -196,11 +226,12 @@ public class PostService {
         String userId = getCurrentUserId();
 
         // Kiểm tra post có tồn tại không
-        Post originalPost = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        Post originalPost =
+                postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
         // Kiểm tra quyền share: chỉ có thể share PUBLIC posts hoặc posts của chính mình
-        if (originalPost.getPrivacy() == PrivacyType.PRIVATE && !originalPost.getUserId().equals(userId)) {
+        if (originalPost.getPrivacy() == PrivacyType.PRIVATE
+                && !originalPost.getUserId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -266,22 +297,29 @@ public class PostService {
 
     public PostResponse getPostById(String postId) {
         String userId = getCurrentUserId();
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
-        
+        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+
         // Kiểm tra quyền xem: nếu post là PRIVATE, chỉ owner mới xem được
         if (post.getPrivacy() == PrivacyType.PRIVATE && !post.getUserId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        
+
         return buildPostResponse(post, post.getUserId());
     }
 
     public PostResponse updatePost(String postId, String content, List<MultipartFile> images, PrivacyType privacy) {
+        return updatePostInternal(postId, content, images, null, privacy);
+    }
+
+    public PostResponse updatePostWithUrls(String postId, String content, List<String> imageUrls, PrivacyType privacy) {
+        return updatePostInternal(postId, content, null, imageUrls, privacy);
+    }
+
+    private PostResponse updatePostInternal(
+            String postId, String content, List<MultipartFile> images, List<String> imageUrls, PrivacyType privacy) {
         String userId = getCurrentUserId();
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
         // Kiểm tra quyền sở hữu
         if (!post.getUserId().equals(userId)) {
@@ -290,8 +328,13 @@ public class PostService {
 
         boolean hasContent = content != null && !content.trim().isEmpty();
         boolean hasImages = images != null && !images.isEmpty();
+        boolean hasImageUrls = imageUrls != null && !imageUrls.isEmpty();
 
-        if (!hasContent && !hasImages && (post.getImageUrls() == null || post.getImageUrls().isEmpty())) {
+        // Kiểm tra post không được rỗng sau khi update
+        if (!hasContent
+                && !hasImages
+                && !hasImageUrls
+                && (post.getImageUrls() == null || post.getImageUrls().isEmpty())) {
             throw new AppException(ErrorCode.POST_EMPTY);
         }
 
@@ -308,11 +351,14 @@ public class PostService {
         // Cập nhật ảnh nếu có
         if (hasImages) {
             try {
-                List<String> imageUrls = imageUploadKafkaService.uploadPostImages(images, userId, post.getId());
-                post.setImageUrls(imageUrls);
+                List<String> uploadedImageUrls = imageUploadKafkaService.uploadPostImages(images, userId, post.getId());
+                post.setImageUrls(uploadedImageUrls);
             } catch (Exception e) {
                 log.error("Failed to upload images for post: {}", post.getId(), e);
             }
+        } else if (hasImageUrls) {
+            // Cập nhật với imageUrls đã có sẵn
+            post.setImageUrls(imageUrls);
         }
 
         post.setModifiedDate(Instant.now());
@@ -323,8 +369,7 @@ public class PostService {
     public void deletePost(String postId) {
         String userId = getCurrentUserId();
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
         // Kiểm tra quyền sở hữu
         if (!post.getUserId().equals(userId)) {
@@ -345,10 +390,14 @@ public class PostService {
         String currentUserId = getCurrentUserId();
         UserProfileResponse userProfile = getUserProfile(userId);
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findByUserIdWithPrivacy(userId, pageable);
-        
+
+        // Loại bỏ posts trong group khi xem posts của user
         var postList = pageData.getContent().stream()
+                .filter(post ->
+                        post.getGroupId() == null || post.getGroupId().trim().isEmpty())
                 .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
                     enrichPostResponse(postResponse, post, userProfile);
@@ -372,9 +421,8 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("sharedDate").descending());
         var pageData = sharedPostRepository.findAllByUserId(userId, pageable);
 
-        List<String> postIds = pageData.getContent().stream()
-                .map(SharedPost::getPostId)
-                .toList();
+        List<String> postIds =
+                pageData.getContent().stream().map(SharedPost::getPostId).toList();
 
         if (postIds.isEmpty()) {
             return PageResponse.<PostResponse>builder()
@@ -387,8 +435,7 @@ public class PostService {
         }
 
         List<Post> posts = postRepository.findAllById(postIds);
-        var postMap = posts.stream()
-                .collect(Collectors.toMap(Post::getId, post -> post));
+        var postMap = posts.stream().collect(Collectors.toMap(Post::getId, post -> post));
 
         var postList = pageData.getContent().stream()
                 .map(sharedPost -> {
@@ -423,21 +470,21 @@ public class PostService {
         }
 
         String userId = getCurrentUserId();
-        
+
         // Lấy danh sách blocked users
         Set<String> blockedUserIds = getBlockedUserIds(userId);
-        
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
-        
+
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+
         // Search trong PUBLIC posts và posts của chính user, loại trừ blocked users
         List<String> excludedUserIds = List.copyOf(blockedUserIds);
-        var pageData = postRepository.searchPublicPosts(
-                userId, 
-                keyword.trim(), 
-                excludedUserIds, 
-                pageable);
+        var pageData = postRepository.searchPublicPosts(userId, keyword.trim(), excludedUserIds, pageable);
 
+        // Loại bỏ posts trong group (search chỉ tìm posts cá nhân)
         var postList = pageData.getContent().stream()
+                .filter(post ->
+                        post.getGroupId() == null || post.getGroupId().trim().isEmpty())
                 .map(post -> buildPostResponse(post, post.getUserId()))
                 .toList();
 
@@ -452,18 +499,19 @@ public class PostService {
 
     public PageResponse<PostResponse> getPublicPosts(int page, int size) {
         String userId = getCurrentUserId();
-        
+
         Set<String> blockedUserIds = new HashSet<>(getBlockedUserIds(userId));
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
-        
-        List<String> excludedUserIds = List.copyOf(blockedUserIds);
-        var pageData = postRepository.findByPrivacyAndUserIdNotIn(
-                PrivacyType.PUBLIC, 
-                excludedUserIds, 
-                pageable);
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
 
+        List<String> excludedUserIds = List.copyOf(blockedUserIds);
+        var pageData = postRepository.findByPrivacyAndUserIdNotIn(PrivacyType.PUBLIC, excludedUserIds, pageable);
+
+        // Loại bỏ posts trong group (public posts chỉ hiển thị posts cá nhân)
         var postList = pageData.getContent().stream()
+                .filter(post ->
+                        post.getGroupId() == null || post.getGroupId().trim().isEmpty())
                 .map(post -> buildPostResponse(post, post.getUserId()))
                 .toList();
 
@@ -478,10 +526,10 @@ public class PostService {
 
     public PageResponse<PostResponse> getFeed(int page, int size) {
         String userId = getCurrentUserId();
-        
+
         Set<String> friendIds = new HashSet<>();
         Set<String> followingIds = new HashSet<>();
-        
+
         try {
             var friendIdsResponse = socialClient.getFriendIds();
             if (friendIdsResponse != null && friendIdsResponse.getResult() != null) {
@@ -490,7 +538,7 @@ public class PostService {
         } catch (Exception e) {
             log.warn("Không thể lấy danh sách friends: {}", e.getMessage());
         }
-        
+
         try {
             var followingIdsResponse = socialClient.getFollowingIds();
             if (followingIdsResponse != null && followingIdsResponse.getResult() != null) {
@@ -499,14 +547,14 @@ public class PostService {
         } catch (Exception e) {
             log.warn("Không thể lấy danh sách following: {}", e.getMessage());
         }
-        
+
         Set<String> allowedUserIds = new HashSet<>(friendIds);
         allowedUserIds.addAll(followingIds);
         allowedUserIds.add(userId);
-        
+
         Set<String> blockedUserIds = new HashSet<>(getBlockedUserIds(userId));
         allowedUserIds.removeAll(blockedUserIds);
-        
+
         if (allowedUserIds.isEmpty()) {
             return PageResponse.<PostResponse>builder()
                     .currentPage(page)
@@ -516,16 +564,40 @@ public class PostService {
                     .data(List.of())
                     .build();
         }
-        
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
-        
+
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+
         List<String> userIdsList = List.copyOf(allowedUserIds);
         var pageData = postRepository.findByUserIdInWithPrivacyFilter(userIdsList, userId, pageable);
-        
+
+        // Loại bỏ posts trong group khỏi feed (feed chỉ hiển thị posts cá nhân)
+        var postList = pageData.getContent().stream()
+                .filter(post ->
+                        post.getGroupId() == null || post.getGroupId().trim().isEmpty())
+                .map(post -> buildPostResponse(post, post.getUserId()))
+                .toList();
+
+        return PageResponse.<PostResponse>builder()
+                .currentPage(page)
+                .pageSize(pageData.getSize())
+                .totalPages(pageData.getTotalPages())
+                .totalElements(pageData.getTotalElements())
+                .data(postList)
+                .build();
+    }
+
+    public PageResponse<PostResponse> getPostsByGroup(String groupId, int page, int size) {
+        String userId = getCurrentUserId();
+
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        var pageData = postRepository.findByGroupIdWithPrivacy(groupId, userId, pageable);
+
         var postList = pageData.getContent().stream()
                 .map(post -> buildPostResponse(post, post.getUserId()))
                 .toList();
-        
+
         return PageResponse.<PostResponse>builder()
                 .currentPage(page)
                 .pageSize(pageData.getSize())
@@ -565,37 +637,58 @@ public class PostService {
         postResponse.setCreated(dateTimeFormatter.format(post.getCreatedDate()));
         if (userProfile != null) {
             // Hiển thị họ + tên thay vì username
-            String displayName = getDisplayName(userProfile.getFirstName(), userProfile.getLastName(), userProfile.getUsername());
+            String displayName =
+                    getDisplayName(userProfile.getFirstName(), userProfile.getLastName(), userProfile.getUsername());
             postResponse.setUsername(displayName);
             postResponse.setUserAvatar(userProfile.getAvatar());
         }
-        
+
+        // Set group info nếu có
+        if (post.getGroupId() != null && !post.getGroupId().trim().isEmpty()) {
+            postResponse.setGroupId(post.getGroupId());
+            try {
+                var groupResponse = groupClient.getGroup(post.getGroupId());
+                if (groupResponse != null && groupResponse.getResult() != null) {
+                    postResponse.setGroupName(groupResponse.getResult().getName());
+                }
+            } catch (Exception e) {
+                log.warn("Không thể lấy thông tin group cho post {}: {}", post.getId(), e.getMessage());
+            }
+        }
+
         String currentUserId = getCurrentUserId();
         postResponse.setIsSaved(savedPostRepository.existsByUserIdAndPostId(currentUserId, post.getId()));
         postResponse.setShareCount(sharedPostRepository.countByPostId(post.getId()));
-        
+
         try {
             var likeCountResponse = interactionClient.getLikeCountByPost(post.getId());
-            postResponse.setLikeCount(likeCountResponse != null && likeCountResponse.getResult() != null 
-                    ? likeCountResponse.getResult().intValue() : 0);
+            postResponse.setLikeCount(
+                    likeCountResponse != null && likeCountResponse.getResult() != null
+                            ? likeCountResponse.getResult().intValue()
+                            : 0);
         } catch (Exception e) {
             log.warn("Không thể lấy like count từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
             postResponse.setLikeCount(0);
         }
-        
+
         try {
             var commentCountResponse = interactionClient.getCommentCountByPost(post.getId());
-            postResponse.setCommentCount(commentCountResponse != null && commentCountResponse.getResult() != null 
-                    ? commentCountResponse.getResult().intValue() : 0);
+            postResponse.setCommentCount(
+                    commentCountResponse != null && commentCountResponse.getResult() != null
+                            ? commentCountResponse.getResult().intValue()
+                            : 0);
         } catch (Exception e) {
-            log.warn("Không thể lấy comment count từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
+            log.warn(
+                    "Không thể lấy comment count từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
             postResponse.setCommentCount(0);
         }
-        
+
         try {
             var isLikedResponse = interactionClient.isPostLiked(post.getId());
-            postResponse.setIsLiked(isLikedResponse != null && isLikedResponse.getResult() != null 
-                    ? isLikedResponse.getResult() : false);
+            postResponse.setIsLiked(
+                    isLikedResponse != null && isLikedResponse.getResult() != null
+                            ? isLikedResponse.getResult()
+                            : false);
         } catch (Exception e) {
             log.warn("Không thể kiểm tra isLiked từ interaction-service cho post {}: {}", post.getId(), e.getMessage());
             postResponse.setIsLiked(false);
@@ -603,14 +696,20 @@ public class PostService {
     }
 
     private String getDisplayName(String firstName, String lastName, String username) {
+        // Nếu có cả firstName và lastName, hiển thị "firstName lastName"
         if (firstName != null && !firstName.trim().isEmpty() && lastName != null && !lastName.trim().isEmpty()) {
             return (firstName.trim() + " " + lastName.trim()).trim();
-        } else if (firstName != null && !firstName.trim().isEmpty()) {
-            return firstName.trim();
-        } else if (lastName != null && !lastName.trim().isEmpty()) {
+        }
+        // Nếu chỉ có lastName, hiển thị lastName (thường là username)
+        else if (lastName != null && !lastName.trim().isEmpty()) {
             return lastName.trim();
-        } else {
-            // Fallback to username if no first/last name
+        }
+        // Nếu chỉ có firstName, hiển thị firstName
+        else if (firstName != null && !firstName.trim().isEmpty()) {
+            return firstName.trim();
+        }
+        // Fallback to username
+        else {
             return username != null ? username : "";
         }
     }
@@ -620,5 +719,9 @@ public class PostService {
         UserProfileResponse userProfile = getUserProfile(userId);
         enrichPostResponse(postResponse, post, userProfile);
         return postResponse;
+    }
+
+    public boolean checkPostExists(String postId) {
+        return postRepository.existsById(postId);
     }
 }

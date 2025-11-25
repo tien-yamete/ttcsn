@@ -24,6 +24,7 @@ The platform is structured into several microservices:
 - **Chat Service** (Port 8086): Real-time messaging and chat functionality with WebSocket support.
 - **Social Service** (Port 8087): Manages friendships, follow/unfollow, and user blocking features.
 - **Interaction Service** (Port 8088): Handles comments and likes/reactions on posts and comments.
+- **Group Service** (Port 8089): Manages groups, group members, permissions, and group posts.
 
 ---
 
@@ -59,6 +60,7 @@ microservice-social-network/
 │── chat-service/         # Real-time chat & messaging
 │── social-service/       # Friendships, follow/unfollow, blocking
 │── interaction-service/  # Comments and likes/reactions
+│── group-service/        # Group management, members, permissions
 │── shared-common/        # Shared common utilities
 │── shared-contacts/      # Shared contact/friend utilities
 │
@@ -90,7 +92,7 @@ cd friendify
 2. **API Gateway** (Port 8080)
 3. **Identity Service** (Port 8081) - Authentication required by other services
 4. **Profile Service** (Port 8082)
-5. Other microservices (Notification, Post, File, Chat, Social, Interaction)
+5. Other microservices (Notification, Post, File, Chat, Social, Interaction, Group)
 
 Configure environment (DB, Redis, JWT_SECRET, Cloudinary, Email) inside each service's:
 ```
@@ -133,9 +135,10 @@ docker-compose up --build
 - **Profile Service**: User profile management, avatar/background upload, user search.
 
 ### Content & Social
-- **Post Management**: Create, edit, delete, and list posts with text and media support. Privacy settings (PUBLIC, FRIENDS, PRIVATE), post saving/bookmarking, and sharing.
+- **Post Management**: Create, edit, delete, and list posts with text and media support. Privacy settings (PUBLIC, FRIENDS, PRIVATE), post saving/bookmarking, and sharing. Support for group posts.
 - **Interaction Service**: Comments and likes/reactions on posts and comments. Nested replies support.
 - **Social Service**: Friend requests, friendships management, follow/unfollow system, user blocking.
+- **Group Service**: Create and manage groups, add/remove members, set permissions (admin, moderator, member), control posting permissions, moderation settings, and join requests.
 
 ### Communication
 - **Real-time Chat**: WebSocket-based messaging with:

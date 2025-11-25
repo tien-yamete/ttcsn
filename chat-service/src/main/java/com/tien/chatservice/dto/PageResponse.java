@@ -1,14 +1,14 @@
 package com.tien.chatservice.dto;
 
+import java.util.Collections;
+import java.util.List;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
-import java.util.Collections;
-import java.util.List;
 
 @Data
 @Builder
@@ -24,4 +24,3 @@ public class PageResponse<T> {
     @Builder.Default
     List<T> data = Collections.emptyList();
 }
-

@@ -1,16 +1,9 @@
 package com.tien.chatservice.controller;
 
-import com.tien.chatservice.dto.ApiResponse;
-import com.tien.chatservice.dto.request.AddAdminRequest;
-import com.tien.chatservice.dto.request.AddParticipantRequest;
-import com.tien.chatservice.dto.request.ConversationRequest;
-import com.tien.chatservice.dto.request.UpdateConversationRequest;
-import com.tien.chatservice.dto.response.ConversationResponse;
-import com.tien.chatservice.service.ConversationService;
+import java.util.List;
+
 import jakarta.validation.Valid;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,16 +13,26 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.tien.chatservice.dto.ApiResponse;
+import com.tien.chatservice.dto.request.AddAdminRequest;
+import com.tien.chatservice.dto.request.AddParticipantRequest;
+import com.tien.chatservice.dto.request.ConversationRequest;
+import com.tien.chatservice.dto.request.UpdateConversationRequest;
+import com.tien.chatservice.dto.response.ConversationResponse;
+import com.tien.chatservice.service.ConversationService;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("conversations")
+@RequestMapping("/conversations")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ConversationController {
     ConversationService conversationService;
 
-    @PostMapping("/create")
+    @PostMapping
     ApiResponse<ConversationResponse> createConversation(@RequestBody @Valid ConversationRequest request) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.create(request))
@@ -52,8 +55,7 @@ public class ConversationController {
 
     @PutMapping("/{id}")
     ApiResponse<ConversationResponse> updateConversation(
-            @PathVariable String id,
-            @RequestBody @Valid UpdateConversationRequest request) {
+            @PathVariable String id, @RequestBody @Valid UpdateConversationRequest request) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.updateConversation(id, request))
                 .build();
@@ -67,17 +69,14 @@ public class ConversationController {
 
     @PostMapping("/{id}/participants")
     ApiResponse<ConversationResponse> addParticipants(
-            @PathVariable String id,
-            @RequestBody @Valid AddParticipantRequest request) {
+            @PathVariable String id, @RequestBody @Valid AddParticipantRequest request) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.addParticipants(id, request))
                 .build();
     }
 
     @DeleteMapping("/{id}/participants/{participantId}")
-    ApiResponse<ConversationResponse> removeParticipant(
-            @PathVariable String id,
-            @PathVariable String participantId) {
+    ApiResponse<ConversationResponse> removeParticipant(@PathVariable String id, @PathVariable String participantId) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.removeParticipant(id, participantId))
                 .build();
@@ -91,17 +90,14 @@ public class ConversationController {
 
     @PostMapping("/{id}/admins")
     ApiResponse<ConversationResponse> promoteToAdmin(
-            @PathVariable String id,
-            @RequestBody @Valid AddAdminRequest request) {
+            @PathVariable String id, @RequestBody @Valid AddAdminRequest request) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.promoteToAdmin(id, request))
                 .build();
     }
 
     @DeleteMapping("/{id}/admins/{participantId}")
-    ApiResponse<ConversationResponse> demoteFromAdmin(
-            @PathVariable String id,
-            @PathVariable String participantId) {
+    ApiResponse<ConversationResponse> demoteFromAdmin(@PathVariable String id, @PathVariable String participantId) {
         return ApiResponse.<ConversationResponse>builder()
                 .result(conversationService.demoteFromAdmin(id, participantId))
                 .build();

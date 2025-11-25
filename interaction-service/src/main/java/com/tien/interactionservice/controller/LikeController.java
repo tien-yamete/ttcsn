@@ -12,7 +12,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/likes")
+@RequestMapping("/likes")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LikeController {
@@ -30,8 +30,6 @@ public class LikeController {
     ApiResponse<Void> unlike(@PathVariable String id) {
         likeService.unlike(id);
         return ApiResponse.<Void>builder()
-                .message("Unlike thành công")
-                .result(null)
                 .build();
     }
 
@@ -40,7 +38,6 @@ public class LikeController {
         likeService.unlikeByPost(postId);
         return ApiResponse.<Void>builder()
                 .message("Unlike thành công")
-                .result(null)
                 .build();
     }
 
@@ -49,7 +46,6 @@ public class LikeController {
         likeService.unlikeByComment(commentId);
         return ApiResponse.<Void>builder()
                 .message("Unlike thành công")
-                .result(null)
                 .build();
     }
 
@@ -61,22 +57,6 @@ public class LikeController {
         return ApiResponse.<PageResponse<LikeResponse>>builder()
                 .message("Lấy danh sách likes thành công")
                 .result(likeService.getLikesByPost(postId, page, size))
-                .build();
-    }
-
-    @GetMapping("/post/{postId}/count")
-    ApiResponse<Long> getLikeCountByPost(@PathVariable String postId) {
-        return ApiResponse.<Long>builder()
-                .message("Lấy số lượng likes thành công")
-                .result(likeService.getLikeCountByPost(postId))
-                .build();
-    }
-
-    @GetMapping("/post/{postId}/is-liked")
-    ApiResponse<Boolean> isPostLiked(@PathVariable String postId) {
-        return ApiResponse.<Boolean>builder()
-                .message("Kiểm tra like thành công")
-                .result(likeService.isPostLiked(postId))
                 .build();
     }
 }

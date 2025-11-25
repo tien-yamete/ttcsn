@@ -17,6 +17,13 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {"/media/download/**"};
+    private static final String[] SWAGGER_ENDPOINTS = {
+        "/swagger-ui/**",
+        "/swagger-ui.html",
+        "/v3/api-docs/**",
+        "/swagger-resources/**",
+        "/webjars/**"
+    };
 
     private final CustomJwtDecoder customJwtDecoder;
 
@@ -27,6 +34,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(HttpMethod.GET, PUBLIC_ENDPOINTS)
+                .permitAll()
+                .requestMatchers(SWAGGER_ENDPOINTS)
                 .permitAll()
                 .anyRequest()
                 .authenticated());

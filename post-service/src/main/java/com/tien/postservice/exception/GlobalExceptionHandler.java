@@ -1,17 +1,19 @@
 package com.tien.postservice.exception;
 
+import java.util.Map;
+import java.util.Objects;
 
-import com.tien.postservice.dto.ApiResponse;
 import jakarta.validation.ConstraintViolation;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import java.util.Map;
-import java.util.Objects;
+import com.tien.postservice.dto.ApiResponse;
+
+import lombok.extern.slf4j.Slf4j;
 
 // GlobalExceptionHandler: Chịu trách nhiệm xử lý tập trung tất cả exception trong hệ thống.
 
@@ -81,7 +83,9 @@ public class GlobalExceptionHandler {
                     if (!errors.isEmpty()) {
                         try {
                             var constraintViolation = errors.get(0).unwrap(ConstraintViolation.class);
-                            attributes = constraintViolation.getConstraintDescriptor().getAttributes();
+                            attributes = constraintViolation
+                                    .getConstraintDescriptor()
+                                    .getAttributes();
                         } catch (Exception ex) {
                             log.debug("Cannot unwrap constraint violation", ex);
                         }

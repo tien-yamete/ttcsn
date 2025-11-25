@@ -1,17 +1,19 @@
 package com.tien.socialservice.controller;
 
+import java.util.List;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
 import com.tien.socialservice.dto.ApiResponse;
 import com.tien.socialservice.dto.PageResponse;
 import com.tien.socialservice.dto.response.FriendshipResponse;
 import com.tien.socialservice.dto.response.ProfileResponse;
 import com.tien.socialservice.service.FriendshipService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/friendships")
@@ -52,8 +54,8 @@ public class FriendshipController {
 
     @GetMapping("/friends")
     ApiResponse<PageResponse<FriendshipResponse>> getFriends(
-            @RequestParam(value ="page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "size", required = false,defaultValue = "20") int size) {
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<PageResponse<FriendshipResponse>>builder()
                 .result(friendshipService.getFriends(userId, page, size))
@@ -62,8 +64,8 @@ public class FriendshipController {
 
     @GetMapping("/sent-requests")
     ApiResponse<PageResponse<FriendshipResponse>> getSentFriendRequests(
-            @RequestParam(value ="page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "size", required = false,defaultValue = "20") int size) {
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<PageResponse<FriendshipResponse>>builder()
                 .result(friendshipService.getSentFriendRequests(userId, page, size))
@@ -72,8 +74,8 @@ public class FriendshipController {
 
     @GetMapping("/received-requests")
     ApiResponse<PageResponse<FriendshipResponse>> getReceivedFriendRequests(
-            @RequestParam(value ="page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "size", required = false,defaultValue = "20") int size) {
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<PageResponse<FriendshipResponse>>builder()
                 .result(friendshipService.getReceivedFriendRequests(userId, page, size))
@@ -81,8 +83,7 @@ public class FriendshipController {
     }
 
     @GetMapping("/search")
-    ApiResponse<List<ProfileResponse>> searchFriends(
-            @RequestParam("keyword") String keyword) {
+    ApiResponse<List<ProfileResponse>> searchFriends(@RequestParam("keyword") String keyword) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<List<ProfileResponse>>builder()
                 .result(friendshipService.searchFriends(userId, keyword))
@@ -94,14 +95,6 @@ public class FriendshipController {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return ApiResponse.<String>builder()
                 .result(friendshipService.getFriendshipStatus(userId, friendId))
-                .build();
-    }
-
-    @GetMapping("/internal/friend-ids")
-    ApiResponse<List<String>> getFriendIds() {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ApiResponse.<List<String>>builder()
-                .result(friendshipService.getFriendIds(userId))
                 .build();
     }
 }

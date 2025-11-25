@@ -1,10 +1,11 @@
 package com.tien.socialservice.dto.response;
 
+import java.time.LocalDateTime;
+
 import com.tien.socialservice.entity.FriendshipStatus;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder

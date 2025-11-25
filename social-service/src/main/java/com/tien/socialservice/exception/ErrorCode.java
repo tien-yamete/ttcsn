@@ -1,8 +1,9 @@
 package com.tien.socialservice.exception;
 
-import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+
+import lombok.Getter;
 
 @Getter
 public enum ErrorCode {
@@ -20,8 +21,7 @@ public enum ErrorCode {
     CANNOT_BLOCK_SELF(4003, "Cannot block yourself", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(401, "Unauthorized", HttpStatus.UNAUTHORIZED),
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized exception", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEYWORD(1002, "Invalid keyword", HttpStatus.BAD_REQUEST)
-    ;
+    INVALID_KEYWORD(1002, "Invalid keyword", HttpStatus.BAD_REQUEST);
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
         this.code = code;

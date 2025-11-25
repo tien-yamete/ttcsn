@@ -2,6 +2,14 @@ server:
   port: 8087
   servlet:
     context-path: /social
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
 spring:
   application:
     name: social-service

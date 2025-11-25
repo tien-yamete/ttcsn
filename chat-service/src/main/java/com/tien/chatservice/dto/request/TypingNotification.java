@@ -17,4 +17,3 @@ public class TypingNotification {
     String conversationId;
     boolean isTyping;
 }
-

@@ -1,5 +1,14 @@
 package com.tien.chatservice.service;
 
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tien.chatservice.dto.response.ReadReceiptResponse;
 import com.tien.chatservice.entity.ChatMessage;
 import com.tien.chatservice.entity.ReadReceipt;
@@ -9,18 +18,11 @@ import com.tien.chatservice.mapper.ReadReceiptMapper;
 import com.tien.chatservice.repository.ChatMessageRepository;
 import com.tien.chatservice.repository.ConversationRepository;
 import com.tien.chatservice.repository.ReadReceiptRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -37,11 +39,12 @@ public class ReadReceiptService {
     public ReadReceiptResponse markAsRead(String messageId) {
         String userId = getCurrentUserId();
         ChatMessage message = findMessageOrThrow(messageId);
-        
+
         validateConversationAccess(message.getConversationId());
         validateNotSender(message, userId);
 
-        ReadReceipt receipt = readReceiptRepository.findByMessageIdAndUserId(messageId, userId)
+        ReadReceipt receipt = readReceiptRepository
+                .findByMessageIdAndUserId(messageId, userId)
                 .orElseGet(() -> createReadReceipt(messageId, message.getConversationId(), userId));
 
         return readReceiptMapper.toReadReceiptResponse(receipt);
@@ -60,13 +63,12 @@ public class ReadReceiptService {
         String userId = getCurrentUserId();
         validateConversationAccess(conversationId);
 
-        List<ChatMessage> allMessages = chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
-        Set<String> readMessageIds = new HashSet<>(
-                readReceiptRepository.findAllByConversationIdAndUserId(conversationId, userId)
-                        .stream()
+        List<ChatMessage> allMessages =
+                chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
+        Set<String> readMessageIds =
+                new HashSet<>(readReceiptRepository.findAllByConversationIdAndUserId(conversationId, userId).stream()
                         .map(ReadReceipt::getMessageId)
-                        .toList()
-        );
+                        .toList());
 
         return allMessages.stream()
                 .filter(msg -> !msg.getSender().getUserId().equals(userId))
@@ -79,7 +81,8 @@ public class ReadReceiptService {
     }
 
     private ChatMessage findMessageOrThrow(String messageId) {
-        return chatMessageRepository.findById(messageId)
+        return chatMessageRepository
+                .findById(messageId)
                 .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
     }
 
@@ -102,7 +105,8 @@ public class ReadReceiptService {
     private void validateConversationAccess(String conversationId) {
         String userId = getCurrentUserId();
 
-        conversationRepository.findById(conversationId)
+        conversationRepository
+                .findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND))
                 .getParticipants()
                 .stream()
@@ -111,4 +115,3 @@ public class ReadReceiptService {
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
     }
 }
-

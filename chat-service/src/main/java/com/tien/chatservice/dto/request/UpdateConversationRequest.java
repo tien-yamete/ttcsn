@@ -1,6 +1,7 @@
 package com.tien.chatservice.dto.request;
 
 import jakarta.validation.constraints.Size;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,4 +20,3 @@ public class UpdateConversationRequest {
 
     String conversationAvatar;
 }
-

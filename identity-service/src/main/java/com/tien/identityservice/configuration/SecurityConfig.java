@@ -44,6 +44,15 @@ public class SecurityConfig {
         "/auth/forgot-password",
         "/auth/reset-password"
     };
+    
+    // Swagger UI endpoints
+    private final String[] SWAGGER_ENDPOINTS = {
+        "/swagger-ui/**",
+        "/swagger-ui.html",
+        "/v3/api-docs/**",
+        "/swagger-resources/**",
+        "/webjars/**"
+    };
 
     CustomJwtDecoder customJwtDecoder;
     OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
@@ -56,6 +65,8 @@ public class SecurityConfig {
         httpSecurity.authorizeHttpRequests(requests -> requests.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS)
                 .permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**")
+                .permitAll()
+                .requestMatchers(SWAGGER_ENDPOINTS)
                 .permitAll()
                 // .requestMatchers(HttpMethod.GET, "/users").hasRole(Role.ADMIN.name()).hasAuthority("ROLE_ADMIN")
                 .anyRequest()

@@ -1,14 +1,13 @@
 package com.tien.postservice.service;
 
-import com.tien.sharedcommon.converter.MediaConverter;
-import com.tien.sharedcontacts.media.ImageTopics;
-import com.tien.sharedcontacts.media.ImageUploadEvent;
-import com.tien.sharedcontacts.media.ImageUploadedEvent;
-import com.tien.sharedcontacts.media.entity.ImageType;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -17,13 +16,16 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import com.tien.sharedcommon.converter.MediaConverter;
+import com.tien.sharedcontacts.media.ImageTopics;
+import com.tien.sharedcontacts.media.ImageUploadEvent;
+import com.tien.sharedcontacts.media.ImageUploadedEvent;
+import com.tien.sharedcontacts.media.entity.ImageType;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -34,17 +36,16 @@ public class ImageUploadKafkaService {
 
     Map<String, CompletableFuture<ImageUploadedEvent>> pendingUploads = new ConcurrentHashMap<>();
 
-    public List<String> uploadPostImages(List<MultipartFile> files, String ownerId, String postId)
-    throws Exception {
-        if(files == null || files.isEmpty()) {
+    public List<String> uploadPostImages(List<MultipartFile> files, String ownerId, String postId) throws Exception {
+        if (files == null || files.isEmpty()) {
             return List.of();
         }
         List<String> imageUrls = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            if(file != null && !file.isEmpty()) {
+            if (file != null && !file.isEmpty()) {
                 ImageUploadedEvent result = uploadSingleImage(file, ownerId, postId);
-                if(result != null && result.imageUrl() != null) {
+                if (result != null && result.imageUrl() != null) {
                     imageUrls.add(result.imageUrl());
                 }
             }
@@ -57,15 +58,9 @@ public class ImageUploadKafkaService {
 
         String correlationId = UUID.randomUUID().toString();
 
-        ImageUploadEvent event = new ImageUploadEvent(
-                List.of(base64),
-                ImageType.POST_IMAGE,
-                ownerId,
-                postId,
-                null
-        );
+        ImageUploadEvent event = new ImageUploadEvent(List.of(base64), ImageType.POST_IMAGE, ownerId, postId, null);
 
-        CompletableFuture<ImageUploadedEvent> future = new  CompletableFuture<>();
+        CompletableFuture<ImageUploadedEvent> future = new CompletableFuture<>();
         pendingUploads.put(correlationId, future);
 
         try {
@@ -81,20 +76,17 @@ public class ImageUploadKafkaService {
 
     @KafkaListener(topics = ImageTopics.IMAGE_UPLOADED, groupId = "post-service-group")
     public void handleImageUploaded(
-            @Header (KafkaHeaders.RECEIVED_KEY) String correlationId,
-            @Payload ImageUploadedEvent event){
+            @Header(KafkaHeaders.RECEIVED_KEY) String correlationId, @Payload ImageUploadedEvent event) {
         log.info("Received image uploaded event with correlationId: {}, event: {}", correlationId, event);
-        if(correlationId != null){
+        if (correlationId != null) {
             CompletableFuture<ImageUploadedEvent> future = pendingUploads.get(correlationId);
-            if(future != null && !future.isDone()){
+            if (future != null && !future.isDone()) {
                 future.complete(event);
                 log.info("Completed future for correlationId: {}", correlationId);
-            }
-            else {
+            } else {
                 log.warn("No pending future found for correlationId: {}", correlationId);
             }
-        }
-        else {
+        } else {
             log.warn("Received image uploaded event without correlationId in message key");
         }
     }

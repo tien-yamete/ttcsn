@@ -1,6 +1,8 @@
 package com.tien.socialservice.repository;
 
-import com.tien.socialservice.entity.UserBlock;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,8 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.tien.socialservice.entity.UserBlock;
 
 @Repository
 public interface UserBlockRepository extends JpaRepository<UserBlock, String> {
@@ -20,8 +21,9 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, String> {
     @Query("SELECT ub FROM UserBlock ub WHERE ub.blockerId = :userId")
     Page<UserBlock> findBlockedUsersByUserId(@Param("userId") String userId, Pageable pageable);
 
-    @Query("SELECT CASE WHEN COUNT(ub) > 0 THEN true ELSE false END FROM UserBlock ub " +
-            "WHERE (ub.blockerId = :userId1 AND ub.blockedId = :userId2) OR (ub.blockerId = :userId2 AND ub.blockedId = :userId1)")
+    @Query(
+            "SELECT CASE WHEN COUNT(ub) > 0 THEN true ELSE false END FROM UserBlock ub "
+                    + "WHERE (ub.blockerId = :userId1 AND ub.blockedId = :userId2) OR (ub.blockerId = :userId2 AND ub.blockedId = :userId1)")
     boolean isBlocked(@Param("userId1") String userId1, @Param("userId2") String userId2);
 
     @Query("SELECT ub.blockedId FROM UserBlock ub WHERE ub.blockerId = :userId")
