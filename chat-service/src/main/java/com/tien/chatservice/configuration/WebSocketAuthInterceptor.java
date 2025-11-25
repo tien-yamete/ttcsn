@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -15,8 +14,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
+
+import com.tien.chatservice.exception.AppException;
+import com.tien.chatservice.exception.ErrorCode;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -75,17 +78,21 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                             SecurityContextHolder.getContext().setAuthentication(authentication);
 
                             log.info("Kết nối WebSocket đã được xác thực cho user: {}", jwt.getSubject());
+                        } catch (JwtException e) {
+                            log.error("Xác thực kết nối WebSocket thất bại: {}", e.getMessage());
+                            ErrorCode errorCode = mapJwtExceptionToErrorCode(e);
+                            throw new AppException(errorCode);
                         } catch (Exception e) {
                             log.error("Xác thực kết nối WebSocket thất bại: {}", e.getMessage());
-                            throw new MessageDeliveryException("Authentication failed: " + e.getMessage());
+                            throw new AppException(ErrorCode.INVALID_TOKEN);
                         }
                     } else {
                         log.warn("Cố gắng kết nối WebSocket với định dạng Authorization header không hợp lệ");
-                        throw new MessageDeliveryException("Invalid Authorization header format");
+                        throw new AppException(ErrorCode.INVALID_TOKEN);
                     }
                 } else {
                     log.warn("Cố gắng kết nối WebSocket mà không có Authorization header");
-                    throw new MessageDeliveryException("Authorization header is required");
+                    throw new AppException(ErrorCode.UNAUTHENTICATED);
                 }
             } else if (command != null
                     && (StompCommand.SEND.equals(command) || StompCommand.SUBSCRIBE.equals(command))) {
@@ -135,24 +142,41 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                                         "Đã set Authentication từ header vào SecurityContextHolder cho message {} từ user: {}",
                                         command,
                                         jwt.getSubject());
+                            } catch (JwtException e) {
+                                log.error("Xác thực WebSocket message thất bại: {}", e.getMessage());
+                                ErrorCode errorCode = mapJwtExceptionToErrorCode(e);
+                                throw new AppException(errorCode);
                             } catch (Exception e) {
                                 log.error("Xác thực WebSocket message thất bại: {}", e.getMessage());
-                                throw new MessageDeliveryException("Authentication failed: " + e.getMessage());
+                                throw new AppException(ErrorCode.INVALID_TOKEN);
                             }
                         } else {
                             log.warn("Message {} có Authorization header nhưng format không hợp lệ", command);
-                            throw new MessageDeliveryException("Invalid Authorization header format");
+                            throw new AppException(ErrorCode.INVALID_TOKEN);
                         }
                     } else {
                         log.warn(
                                 "Message {} không có Authentication từ Principal và không có Authorization header",
                                 command);
-                        throw new MessageDeliveryException("Authentication required for " + command);
+                        throw new AppException(ErrorCode.UNAUTHENTICATED);
                     }
                 }
             }
         }
 
         return message;
+    }
+
+    private ErrorCode mapJwtExceptionToErrorCode(JwtException e) {
+        String message = e.getMessage();
+        if (message != null) {
+            if (message.contains("missing expiration") || message.contains("Token missing expiration")) {
+                return ErrorCode.TOKEN_MISSING_EXPIRATION;
+            }
+            if (message.contains("expired") || message.contains("Token expired")) {
+                return ErrorCode.TOKEN_EXPIRED;
+            }
+        }
+        return ErrorCode.INVALID_TOKEN;
     }
 }

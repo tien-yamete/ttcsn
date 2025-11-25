@@ -10,6 +10,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import com.tien.fileservice.dto.ApiResponse;
 
@@ -90,6 +92,38 @@ public class GlobalExceptionHandler {
                         : errorCode.getMessage());
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(value = MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiResponse> handlingMaxUploadSizeExceededException(MaxUploadSizeExceededException exception) {
+        log.error("File size exceeded: ", exception);
+        ErrorCode errorCode = ErrorCode.MAX_FILE_SIZE_EXCEEDED;
+        ApiResponse apiResponse = new ApiResponse();
+
+        apiResponse.setCode(errorCode.getCode());
+        apiResponse.setMessage(errorCode.getMessage());
+
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+    }
+
+    @ExceptionHandler(value = MultipartException.class)
+    ResponseEntity<ApiResponse> handlingMultipartException(MultipartException exception) {
+        log.error("Multipart exception: ", exception);
+        ErrorCode errorCode = ErrorCode.MAX_REQUEST_SIZE_EXCEEDED;
+        
+        // Kiểm tra nếu là lỗi file size
+        if (exception.getCause() instanceof MaxUploadSizeExceededException) {
+            errorCode = ErrorCode.MAX_FILE_SIZE_EXCEEDED;
+        } else if (exception.getMessage() != null && 
+                   (exception.getMessage().contains("size") || exception.getMessage().contains("exceeded"))) {
+            errorCode = ErrorCode.FILE_TOO_LARGE;
+        }
+        
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(errorCode.getCode());
+        apiResponse.setMessage(errorCode.getMessage());
+
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
     // Thay thế placeholder trong message (ví dụ {min}) bằng giá trị thực tế

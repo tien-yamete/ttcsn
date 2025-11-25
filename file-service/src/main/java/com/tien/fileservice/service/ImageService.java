@@ -43,6 +43,8 @@ public class ImageService {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"
     );
+    
+    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB in bytes
 
     Cloudinary cloudinary;
 
@@ -85,8 +87,12 @@ public class ImageService {
                 );
                 uploadedEvents.add(uploadedEvent);
             }
+        } catch (AppException e) {
+            log.error("Upload multiple images failed: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Upload multiple images failed", e);
+            throw new AppException(ErrorCode.CLOUDINARY_UPLOAD_FAILED);
         }
 
         return new MultipleImageResponse(uploadedEvents);
@@ -123,6 +129,11 @@ public class ImageService {
         }
         // Decode Base64 to bytes
         byte[] bytes = MediaConverter.decodeFromBase64(base64);
+        
+        // Validate file size
+        if (bytes.length > MAX_FILE_SIZE) {
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
+        }
 
         final String folder = buildFolder(imageType, ownerId, postId);
 
@@ -212,6 +223,10 @@ public class ImageService {
         }
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
             throw new AppException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+        }
+        // Validate file size
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
         }
 
         final String folder = buildFolder(imageType, ownerId, postId);

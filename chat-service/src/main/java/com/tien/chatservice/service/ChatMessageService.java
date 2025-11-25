@@ -246,7 +246,7 @@ public class ChatMessageService {
 
     private Conversation validateConversationAccess(String conversationId, String userId) {
         if (userId == null || userId.trim().isEmpty()) {
-            throw new IllegalStateException("User ID is required for conversation access validation.");
+            throw new AppException(ErrorCode.USER_ID_REQUIRED);
         }
 
         Conversation conversation = conversationRepository
