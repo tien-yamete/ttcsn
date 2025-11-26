@@ -35,4 +35,9 @@ public class PostResponse {
     Boolean isLiked;
     Boolean isSaved;
     Long shareCount;
+
+    // Original post info (khi là shared post)
+    String originalPostUserId;
+    String originalPostUsername;
+    String originalPostUserAvatar;
 }

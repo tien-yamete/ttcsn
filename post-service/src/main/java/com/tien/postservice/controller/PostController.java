@@ -25,11 +25,7 @@ import lombok.experimental.FieldDefaults;
 public class PostController {
     PostService postService;
 
-    /**
-     * Tạo post với multipart/form-data (upload ảnh trực tiếp)
-     * Endpoint này giữ nguyên để tương thích ngược
-     */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ApiResponse<PostResponse> createPost(
             @RequestParam(value = "content", required = false) String content,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
@@ -40,12 +36,6 @@ public class PostController {
                 .build();
     }
 
-    /**
-     * Tạo post với JSON (không upload ảnh hoặc dùng imageUrls đã upload trước)
-     * Sử dụng endpoint này khi:
-     * - Chỉ có text content, không có ảnh
-     * - Ảnh đã được upload trước và có URLs sẵn
-     */
     @PostMapping(value = "/json", consumes = MediaType.APPLICATION_JSON_VALUE)
     ApiResponse<PostResponse> createPostWithJson(@RequestBody PostRequest request) {
         return ApiResponse.<PostResponse>builder()

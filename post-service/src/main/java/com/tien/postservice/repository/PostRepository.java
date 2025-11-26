@@ -40,4 +40,13 @@ public interface PostRepository extends MongoRepository<Post, String> {
 
     @Query("{ $and: [ " + "{ groupId: ?0 }, " + "{ $or: [ { privacy: 'PUBLIC' }, { userId: ?1 } ] } " + "] }")
     Page<Post> findByGroupIdWithPrivacy(String groupId, String currentUserId, Pageable pageable);
+
+    // Tìm các shared posts (posts có originalPostId) của một user
+    Page<Post> findByUserIdAndOriginalPostIdIsNotNull(String userId, Pageable pageable);
+
+    // Tìm tất cả các shared posts của một original post
+    List<Post> findAllByOriginalPostId(String originalPostId);
+
+    // Xóa tất cả các shared posts của một original post
+    void deleteAllByOriginalPostId(String originalPostId);
 }

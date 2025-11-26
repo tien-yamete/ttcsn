@@ -94,10 +94,11 @@ public class PostService {
         }
 
         Post post = Post.builder()
-                .content(content)
+                .content(hasContent ? content : null)
                 .userId(userId)
                 .privacy(privacy)
                 .groupId(groupId != null && !groupId.trim().isEmpty() ? groupId : null)
+                .originalPostId(null) // Post mới không phải shared post
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();
@@ -235,9 +236,11 @@ public class PostService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
+        // Lưu thông tin share với originalPostUserId
         SharedPost sharedPost = SharedPost.builder()
                 .userId(userId)
                 .postId(postId)
+                .originalPostUserId(originalPost.getUserId())
                 .content(content)
                 .sharedDate(Instant.now())
                 .build();
@@ -250,6 +253,7 @@ public class PostService {
                 .content(content != null && !content.trim().isEmpty() ? content : null)
                 .imageUrls(originalPost.getImageUrls())
                 .privacy(PrivacyType.PUBLIC) // Shared posts are always public
+                .originalPostId(postId) // Link đến bài viết gốc
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();
@@ -379,8 +383,17 @@ public class PostService {
         // Xóa các saved post liên quan
         savedPostRepository.deleteAllByPostId(postId);
 
-        // Xóa các shared post liên quan
-        sharedPostRepository.deleteAllByPostId(postId);
+        // Nếu đây là original post (không phải shared post)
+        if (post.getOriginalPostId() == null) {
+            // Xóa các SharedPost records liên quan
+            sharedPostRepository.deleteAllByPostId(postId);
+            // Xóa tất cả các shared posts (Post có originalPostId = postId này)
+            postRepository.deleteAllByOriginalPostId(postId);
+        } else {
+            // Nếu đây là shared post, xóa SharedPost record tương ứng
+            sharedPostRepository.findByUserIdAndPostId(userId, post.getOriginalPostId())
+                    .ifPresent(sharedPostRepository::delete);
+        }
 
         // Xóa post
         postRepository.delete(post);
@@ -418,36 +431,16 @@ public class PostService {
         String userId = getCurrentUserId();
         UserProfileResponse userProfile = getUserProfile(userId);
 
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("sharedDate").descending());
-        var pageData = sharedPostRepository.findAllByUserId(userId, pageable);
-
-        List<String> postIds =
-                pageData.getContent().stream().map(SharedPost::getPostId).toList();
-
-        if (postIds.isEmpty()) {
-            return PageResponse.<PostResponse>builder()
-                    .currentPage(page)
-                    .pageSize(pageData.getSize())
-                    .totalPages(pageData.getTotalPages())
-                    .totalElements(pageData.getTotalElements())
-                    .data(List.of())
-                    .build();
-        }
-
-        List<Post> posts = postRepository.findAllById(postIds);
-        var postMap = posts.stream().collect(Collectors.toMap(Post::getId, post -> post));
+        // Lấy các shared posts (posts có originalPostId) của user hiện tại
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+        var pageData = postRepository.findByUserIdAndOriginalPostIdIsNotNull(userId, pageable);
 
         var postList = pageData.getContent().stream()
-                .map(sharedPost -> {
-                    Post post = postMap.get(sharedPost.getPostId());
-                    if (post == null) {
-                        return null;
-                    }
+                .map(post -> {
                     var postResponse = postMapper.toPostResponse(post);
                     enrichPostResponse(postResponse, post, userProfile);
                     return postResponse;
                 })
-                .filter(post -> post != null)
                 .toList();
 
         return PageResponse.<PostResponse>builder()
@@ -653,6 +646,27 @@ public class PostService {
                 }
             } catch (Exception e) {
                 log.warn("Không thể lấy thông tin group cho post {}: {}", post.getId(), e.getMessage());
+            }
+        }
+
+        // Set original post owner info nếu là shared post
+        if (post.getOriginalPostId() != null && !post.getOriginalPostId().trim().isEmpty()) {
+            try {
+                Post originalPost = postRepository.findById(post.getOriginalPostId()).orElse(null);
+                if (originalPost != null) {
+                    postResponse.setOriginalPostUserId(originalPost.getUserId());
+                    UserProfileResponse originalPostUserProfile = getUserProfile(originalPost.getUserId());
+                    if (originalPostUserProfile != null) {
+                        String originalDisplayName = getDisplayName(
+                                originalPostUserProfile.getFirstName(),
+                                originalPostUserProfile.getLastName(),
+                                originalPostUserProfile.getUsername());
+                        postResponse.setOriginalPostUsername(originalDisplayName);
+                        postResponse.setOriginalPostUserAvatar(originalPostUserProfile.getAvatar());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Không thể lấy thông tin chủ bài viết gốc cho post {}: {}", post.getId(), e.getMessage());
             }
         }
 

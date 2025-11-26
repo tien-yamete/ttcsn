@@ -1,66 +1,40 @@
-# Profile Service - Feature Checklist
+# Profile Service
 
-## ✅ Đã có đầy đủ chức năng cho Profile Management
+## 📖 Mô tả
 
-### 📋 1. Profile APIs
+Service quản lý profile người dùng: thông tin cá nhân, avatar, background, tìm kiếm user.
 
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|-------|
-| Lấy profile | GET | `/users/{profileId}` | Lấy profile theo ID |
-| Lấy tất cả profiles | GET | `/users` | Lấy danh sách tất cả profiles |
-| Lấy profile của mình | GET | `/users/my-profile` | Lấy profile của user hiện tại |
-| Cập nhật profile | PUT | `/users/my-profile` | Cập nhật profile của mình |
-| Tìm kiếm users | POST | `/users/search` | Tìm kiếm users |
-| Cập nhật avatar | PUT | `/users/avatar` | Upload avatar mới |
-| Cập nhật background | PUT | `/users/background` | Upload background image |
+## 🚀 Tính năng
 
-### 📋 2. Internal APIs (cho các service khác)
+- ✅ CRUD profile
+- ✅ Upload avatar
+- ✅ Upload background
+- ✅ Tìm kiếm user
+- ✅ Batch profile retrieval (internal API)
 
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|-------|
-| Lấy profile (internal) | GET | `/internal/users/{userId}` | Lấy profile cho service khác |
-| Lấy nhiều profiles | GET | `/internal/users/batch?userIds=...` | Lấy nhiều profiles cùng lúc |
+## 🔌 API chính
 
-### 📋 3. Profile Features
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/users/{profileId}` | Lấy profile |
+| GET | `/users/my-profile` | Profile của mình |
+| PUT | `/users/my-profile` | Cập nhật profile |
+| PUT | `/users/avatar` | Upload avatar |
+| PUT | `/users/background` | Upload background |
+| POST | `/users/search` | Tìm kiếm user |
+| GET | `/internal/users/{userId}` | Internal API |
 
-- ✅ Profile information management
-- ✅ Avatar upload
-- ✅ Background image upload
-- ✅ User search
-- ✅ Profile viewing
+## 🔧 Cấu hình
 
-### 📋 4. Data Models
+- **Port**: 8082
+- **Context Path**: `/profile`
+- **Database**: MySQL
 
-#### Profile Entity
-- ✅ `id` - Unique identifier
-- ✅ `userId` - Link to Identity Service user
-- ✅ `username` - Username
-- ✅ `firstName` - First name
-- ✅ `lastName` - Last name
-- ✅ `dob` - Date of birth
-- ✅ `city` - City
-- ✅ `country` - Country
-- ✅ `bio` - Bio/Description
-- ✅ `phoneNumber` - Phone number
-- ✅ `gender` - Gender
-- ✅ `website` - Personal website
-- ✅ `avatar` - Avatar URL
-- ✅ `backgroundImage` - Background image URL
-- ✅ `createdAt` - Created timestamp
-- ✅ `updatedAt` - Updated timestamp
+## 🚀 Chạy
 
-### 📋 5. Integration
+```bash
+cd profile-service
+mvn spring-boot:run
+```
 
-- ✅ Integration với Identity Service
-- ✅ Integration với File Service (upload images)
-- ✅ Internal APIs cho các service khác
-
-## ✅ Kết luận
-
-**Profile Service đã đầy đủ chức năng cho:**
-- ✅ Profile CRUD operations
-- ✅ Avatar & background image management
-- ✅ User search
-- ✅ Internal APIs cho microservices
-- ✅ Profile viewing & editing
-
+**Truy cập**: `http://localhost:8082/profile/swagger-ui.html`

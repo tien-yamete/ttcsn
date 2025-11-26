@@ -20,19 +20,27 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Bộ lọc xác thực token JWT trước khi cho request đi tiếp
+ */
 @Component
 @Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PACKAGE, makeFinal = true)
 public class AuthenticationFilter implements GlobalFilter, Ordered {
-    IdentityService identityService;
 
+    private static final int UNAUTHENTICATED_CODE = 1401;
+    private static final String UNAUTHENTICATED_MESSAGE = "Unauthenticated";
+    private static final String BEARER_PREFIX = "Bearer ";
+
+    IdentityService identityService;
     ObjectMapper objectMapper;
 
     @NonFinal
@@ -41,7 +49,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             "/identity/oauth2/.*",
             "/identity/login/oauth2/.*",
             "/notification/email/send",
-            "/file/media/download/.*",
+            "/file/media/download/.*"
     };
 
     @Value("${app.api-prefix}")
@@ -50,28 +58,52 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        log.info("Enter AuthenticationFilter");
+        String path = exchange.getRequest().getURI().getPath();
+        log.debug("Đang xử lý request: {}", path);
 
-        if (isPublicEndpoint(exchange.getRequest()))
+        if (isPublicEndpoint(exchange.getRequest())) {
+            log.debug("Endpoint công khai, bỏ qua xác thực");
             return chain.filter(exchange);
+        }
 
-        // Get token from authorization header
-        List<String> authHeader =  exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
+        List<String> authHeaders = exchange.getRequest()
+                .getHeaders()
+                .get(HttpHeaders.AUTHORIZATION);
 
-        if(CollectionUtils.isEmpty(authHeader)) {
+        if (CollectionUtils.isEmpty(authHeaders)) {
+            log.warn("Thiếu Authorization header cho path: {}", path);
             return unauthenticated(exchange.getResponse());
         }
 
-        String token = authHeader.get(0).replace("Bearer ", "");
+        String authHeader = authHeaders.get(0);
+        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(BEARER_PREFIX)) {
+            log.warn("Định dạng Authorization header không hợp lệ");
+            return unauthenticated(exchange.getResponse());
+        }
 
-        log.info("token: {}", token);
+        String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        if (!StringUtils.hasText(token)) {
+            log.warn("Token rỗng");
+            return unauthenticated(exchange.getResponse());
+        }
 
-        return identityService.introspect(token).flatMap(introspectResponse -> {
-            if (introspectResponse.getResult().isValid())
-                return chain.filter(exchange);
-            else
-                return unauthenticated(exchange.getResponse());
-        }).onErrorResume(throwable -> unauthenticated(exchange.getResponse()));
+        log.debug("Đang xác thực token");
+
+        return identityService.introspect(token)
+                .flatMap(apiResponse -> {
+                    if (apiResponse != null
+                            && apiResponse.getResult() != null
+                            && apiResponse.getResult().isValid()) {
+                        log.debug("Token hợp lệ");
+                        return chain.filter(exchange);
+                    }
+                    log.warn("Token không hợp lệ");
+                    return unauthenticated(exchange.getResponse());
+                })
+                .onErrorResume(throwable -> {
+                    log.error("Lỗi khi xác thực token", throwable);
+                    return unauthenticated(exchange.getResponse());
+                });
     }
 
     @Override
@@ -79,29 +111,31 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         return 0;
     }
 
-    private boolean isPublicEndpoint(ServerHttpRequest request){
+    private boolean isPublicEndpoint(ServerHttpRequest request) {
+        String path = request.getURI().getPath();
         return Arrays.stream(publicEndpoints)
-                .anyMatch(s -> request.getURI().getPath().matches(apiPrefix + s));
+                .anyMatch(pattern -> path.matches(apiPrefix + pattern));
     }
 
-    Mono<Void> unauthenticated(ServerHttpResponse response) {
-
+    private Mono<Void> unauthenticated(ServerHttpResponse response) {
         ApiResponse<?> apiResponse = ApiResponse.builder()
-                .code(1401)
-                .message("Unauthenticated")
+                .code(UNAUTHENTICATED_CODE)
+                .message(UNAUTHENTICATED_MESSAGE)
                 .build();
 
-        String body = null;
+        String body;
         try {
             body = objectMapper.writeValueAsString(apiResponse);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            log.error("Không thể serialize unauthenticated response", e);
+            body = String.format("{\"code\":%d,\"message\":\"%s\"}", UNAUTHENTICATED_CODE, UNAUTHENTICATED_MESSAGE);
         }
 
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
 
         return response.writeWith(
-                Mono.just(response.bufferFactory().wrap(body.getBytes())));
+                Mono.just(response.bufferFactory().wrap(body.getBytes()))
+        );
     }
 }

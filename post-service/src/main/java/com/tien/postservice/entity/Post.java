@@ -26,6 +26,7 @@ public class Post {
     List<String> imageUrls;
     PrivacyType privacy;
     String groupId; // null nếu là post thông thường, có giá trị nếu là post trong group
+    String originalPostId; // null nếu là post thông thường, có giá trị nếu là shared post (ID của bài viết gốc)
     Instant createdDate;
     Instant modifiedDate;
 }

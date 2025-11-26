@@ -20,8 +20,9 @@ public class SharedPost {
     @MongoId
     String id;
 
-    String userId;
-    String postId;
+    String userId; // Người share
+    String postId; // ID của bài viết gốc
+    String originalPostUserId; // ID của chủ bài viết gốc
     String content;
     Instant sharedDate;
 }

@@ -17,6 +17,9 @@ public enum ErrorCode {
     POST_NOT_SAVED(1011, "Bài viết chưa được lưu", HttpStatus.BAD_REQUEST),
     POST_NOT_OWNER(1012, "Bạn không phải là chủ sở hữu của bài viết này", HttpStatus.FORBIDDEN),
     SHARED_POST_NOT_FOUND(1013, "Không tìm thấy bài viết được chia sẻ", HttpStatus.NOT_FOUND),
+    FILE_TOO_LARGE(1014, "File quá lớn. Vui lòng chọn file nhỏ hơn", HttpStatus.BAD_REQUEST),
+    MAX_FILE_SIZE_EXCEEDED(1015, "Kích thước file vượt quá giới hạn cho phép", HttpStatus.BAD_REQUEST),
+    MAX_REQUEST_SIZE_EXCEEDED(1016, "Kích thước request vượt quá giới hạn cho phép", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

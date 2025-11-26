@@ -1,64 +1,36 @@
-# File Service - Feature Checklist
+# File Service
 
-## ✅ Đã có đầy đủ chức năng cho File & Media Management
+## 📖 Mô tả
 
-### 📋 1. Image Upload APIs
+Service upload file và media, tích hợp với Cloudinary để lưu trữ và quản lý hình ảnh.
 
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|-------|
-| Upload image (JSON) | POST | `/images/upload` | Upload image qua JSON event |
-| Upload image (Form Data) | POST | `/images/upload-form-data` | Upload image qua multipart form |
-| Upload nhiều images | POST | `/images/upload-multiple-form-data` | Upload nhiều images cùng lúc |
+## 🚀 Tính năng
 
-### 📋 2. Image Upload Features
+- ✅ Upload 1 hoặc nhiều hình ảnh
+- ✅ Phân loại: AVATAR, POST, BACKGROUND
+- ✅ Tích hợp Cloudinary
+- ✅ Tối ưu hình ảnh tự động
 
-- ✅ Single image upload
-- ✅ Multiple images upload
-- ✅ Image type classification (AVATAR, POST, BACKGROUND, etc.)
-- ✅ Cloudinary integration
-- ✅ Image optimization
-- ✅ Owner ID tracking
-- ✅ Post ID association (for post images)
+## 🔌 API chính
 
-### 📋 3. Image Types
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/images/upload-form-data` | Upload 1 ảnh (form) |
+| POST | `/images/upload-multiple-form-data` | Upload nhiều ảnh |
+| POST | `/images/upload` | Upload ảnh (JSON) |
 
-- ✅ `AVATAR` - User avatar
-- ✅ `POST` - Post images
-- ✅ `BACKGROUND` - Profile background
-- ✅ Other image types
+## 🔧 Cấu hình
 
-### 📋 4. Data Models
+- **Port**: 8085
+- **Context Path**: `/file`
+- **Cloudinary**: Cấu hình trong Config Server
+- **Max file size**: 10MB
 
-#### UploadResponse
-- ✅ `publicId` - Cloudinary public ID
-- ✅ `url` - Image URL
-- ✅ `secureUrl` - Secure image URL
-- ✅ `format` - Image format
-- ✅ `width` - Image width
-- ✅ `height` - Image height
-- ✅ `bytes` - File size
+## 🚀 Chạy
 
-### 📋 5. Integration
+```bash
+cd file-service
+mvn spring-boot:run
+```
 
-- ✅ Cloudinary API integration
-- ✅ Image optimization & transformation
-- ✅ Secure URL generation
-- ✅ Multiple format support
-
-### 📋 6. Features
-
-- ✅ Image upload to cloud storage
-- ✅ Image metadata tracking
-- ✅ Owner & post association
-- ✅ Multiple image types support
-- ✅ Form data & JSON event support
-
-## ✅ Kết luận
-
-**File Service đã đầy đủ chức năng cho:**
-- ✅ Image upload (single & multiple)
-- ✅ Cloudinary integration
-- ✅ Image type classification
-- ✅ Image metadata management
-- ✅ Support cho avatar, post images, background
-
+**Truy cập**: `http://localhost:8085/file/swagger-ui.html`
