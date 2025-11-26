@@ -37,10 +37,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationController {
+
     AuthenticationService authenticationService;
 
     @PostMapping("/registration")
-    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
+    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(authenticationService.register(request))
                 .build();
@@ -48,7 +49,7 @@ public class AuthenticationController {
 
     @PostMapping("/verify-user")
     public ApiResponse<Void> verifyUser(@RequestBody VerifyUserRequest request) {
-        log.info("Verifying OTP for email: {}", request.getEmail());
+        log.info("Đang xác thực OTP cho email: {}", request.getEmail());
         authenticationService.verifyUser(request);
         return ApiResponse.<Void>builder()
                 .build();
@@ -62,13 +63,15 @@ public class AuthenticationController {
     }
 
     @PostMapping("/token")
-    ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
-        var result = authenticationService.authenticate(request);
-        return ApiResponse.<AuthenticationResponse>builder().result(result).build();
+    public ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
+        AuthenticationResponse result = authenticationService.authenticate(request);
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(result)
+                .build();
     }
 
     @PostMapping("/introspect")
-    ApiResponse<IntrospectResponse> introspect(@RequestBody IntrospectRequest request)
+    public ApiResponse<IntrospectResponse> introspect(@RequestBody IntrospectRequest request)
             throws ParseException, JOSEException {
         return ApiResponse.<IntrospectResponse>builder()
                 .result(authenticationService.introspect(request))
@@ -76,7 +79,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh")
-    ApiResponse<AuthenticationResponse> refresh(@RequestBody RefreshTokenRequest request)
+    public ApiResponse<AuthenticationResponse> refresh(@RequestBody RefreshTokenRequest request)
             throws ParseException, JOSEException {
         return ApiResponse.<AuthenticationResponse>builder()
                 .result(authenticationService.refreshToken(request))
@@ -84,20 +87,21 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
-    ApiResponse<Void> logout(@RequestBody LogoutRequest request) throws ParseException, JOSEException {
+    public ApiResponse<Void> logout(@RequestBody LogoutRequest request) throws ParseException, JOSEException {
         authenticationService.logout(request);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder()
+                .build();
     }
 
     @PostMapping("/forgot-password")
-    ApiResponse<Void> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
+    public ApiResponse<Void> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
         authenticationService.forgotPassword(request);
         return ApiResponse.<Void>builder()
                 .build();
     }
 
     @PostMapping("/reset-password")
-    ApiResponse<Void> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
+    public ApiResponse<Void> resetPassword(@RequestBody @Valid ResetPasswordRequest request) {
         authenticationService.resetPassword(request);
         return ApiResponse.<Void>builder()
                 .build();

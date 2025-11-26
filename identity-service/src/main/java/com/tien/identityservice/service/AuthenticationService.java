@@ -1,6 +1,7 @@
 package com.tien.identityservice.service;
 
 import java.text.ParseException;
+import java.util.Date;
 import java.util.HashSet;
 
 import com.tien.identityservice.constant.SignInProvider;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.tien.identityservice.constant.EmailTemplate;
 import com.tien.identityservice.constant.OtpType;
 import com.tien.identityservice.constant.PredefinedRole;
@@ -75,9 +77,9 @@ public class AuthenticationService {
         }
 
         // Tạo profile cho user
-        var profile = profileService.createProfileFromCreation(request, user.getId());
+        profileService.createProfileFromCreation(request, user.getId());
 
-        var userOtp = otpService.createOtp(user, OtpType.REGISTER, 15);
+        UserOtp userOtp = otpService.createOtp(user, OtpType.REGISTER, 15);
 
         // Gửi email xác thực
         notificationService.sendEmail(
@@ -85,10 +87,10 @@ public class AuthenticationService {
                 "Verify email",
                 EmailTemplate.otpEmail(request.getUsername(), userOtp.getOtpCode()));
 
-        var userCreationReponse = userMapper.toUserResponse(user);
-        userCreationReponse.setId(user.getId());
+        UserResponse userCreationResponse = userMapper.toUserResponse(user);
+        userCreationResponse.setId(user.getId());
 
-        return userCreationReponse;
+        return userCreationResponse;
     }
 
     // Xác thực email bằng OTP, kích hoạt tài khoản
@@ -131,14 +133,16 @@ public class AuthenticationService {
 
     // Kiểm tra token có hợp lệ hay không.
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
-        var token = request.getToken();
+        String token = request.getToken();
         boolean isValid = jwtService.isValidToken(token);
-        return IntrospectResponse.builder().valid(isValid).build();
+        return IntrospectResponse.builder()
+                .valid(isValid)
+                .build();
     }
 
     // Xác thực username/password, trả về JWT token.
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        var user = userRepository
+        User user = userRepository
                 .findByUsernameWithRolesAndPermissions(request.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
@@ -152,9 +156,12 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.USER_DISABLED);
         }
 
-        var token = jwtService.generateToken(user);
+        String token = jwtService.generateToken(user);
 
-        return AuthenticationResponse.builder().token(token).authenticated(true).build();
+        return AuthenticationResponse.builder()
+                .token(token)
+                .authenticated(true)
+                .build();
     }
 
     // Revoke token (đánh dấu token không còn hợp lệ)
@@ -164,11 +171,11 @@ public class AuthenticationService {
 
     // Làm mới token (revoke token cũ, tạo token mới)
     public AuthenticationResponse refreshToken(RefreshTokenRequest request) throws JOSEException, ParseException {
-        var signedJWT = jwtService.verifyToken(request.getToken(), true);
+        SignedJWT signedJWT = jwtService.verifyToken(request.getToken(), true);
         JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
 
-        var jit = claimsSet.getJWTID();
-        var expiryTime = claimsSet.getExpirationTime();
+        String jit = claimsSet.getJWTID();
+        Date expiryTime = claimsSet.getExpirationTime();
 
         if (jit == null || expiryTime == null) {
             log.warn("Token không có JWT ID hoặc expiry time");
@@ -179,19 +186,22 @@ public class AuthenticationService {
         jwtService.revokeTokenById(jit, expiryTime);
 
         // Lấy user từ subject để phát token mới
-        var userId = claimsSet.getSubject();
+        String userId = claimsSet.getSubject();
         if (userId == null || userId.trim().isEmpty()) {
             log.warn("Token không có subject (userId)");
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        var user = userRepository
+        User user = userRepository
                 .findByIdWithRolesAndPermissions(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
-        var token = jwtService.generateToken(user);
+        String token = jwtService.generateToken(user);
 
-        return AuthenticationResponse.builder().token(token).authenticated(true).build();
+        return AuthenticationResponse.builder()
+                .token(token)
+                .authenticated(true)
+                .build();
     }
 
     // Gửi OTP để reset password (forgot password)

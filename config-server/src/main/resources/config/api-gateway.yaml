@@ -12,7 +12,9 @@ spring:
       default-filters:
         - RemoveRequestHeader=Cookie
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_UNIQUE
-      routes:
+      server:
+        webflux:
+          routes:
             # ========== IDENTITY ==========
             - id: identity_service
               uri: http://localhost:8081

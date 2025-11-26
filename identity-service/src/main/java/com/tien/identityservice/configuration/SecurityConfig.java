@@ -68,7 +68,6 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers(SWAGGER_ENDPOINTS)
                 .permitAll()
-                // .requestMatchers(HttpMethod.GET, "/users").hasRole(Role.ADMIN.name()).hasAuthority("ROLE_ADMIN")
                 .anyRequest()
                 .authenticated());
         // Cấu hình OAuth2 Login

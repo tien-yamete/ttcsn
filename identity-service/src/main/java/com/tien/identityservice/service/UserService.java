@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.tien.identityservice.dto.request.ChangePasswordRequest;
 import com.tien.identityservice.dto.request.UserUpdateRequest;
 import com.tien.identityservice.dto.response.UserResponse;
+import com.tien.identityservice.entity.Role;
 import com.tien.identityservice.entity.User;
 import com.tien.identityservice.exception.AppException;
 import com.tien.identityservice.exception.ErrorCode;
@@ -39,10 +40,12 @@ public class UserService {
 
     // Lấy thông tin user hiện đang đăng nhập
     public UserResponse getMyInfo() {
-        var context = SecurityContextHolder.getContext();
-        String name = context.getAuthentication().getName();
+        String userId = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
 
-        User user = userRepository.findById(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         return userMapper.toUserResponse(user);
     }
@@ -50,12 +53,13 @@ public class UserService {
     // Cập nhật thông tin user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateUser(String userId, UserUpdateRequest request) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         userMapper.updateUser(user, request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        var roles = roleRepository.findAllById(request.getRoles());
+        List<Role> roles = roleRepository.findAllById(request.getRoles());
         user.setRoles(new HashSet<>(roles));
 
         return userMapper.toUserResponse(userRepository.save(user));
@@ -64,7 +68,8 @@ public class UserService {
     // Xóa user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(String userId) {
-        var user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         user.setIsActive(false);
         userRepository.save(user);
     }
@@ -72,8 +77,10 @@ public class UserService {
     // Lấy danh sách tất cả user (chỉ ADMIN)
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> getUsers() {
-        log.info("In method get Users");
-        return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
+        log.debug("Lấy danh sách tất cả users");
+        return userRepository.findAll().stream()
+                .map(userMapper::toUserResponse)
+                .toList();
     }
 
     // Lấy thông tin user theo ID (chỉ ADMIN)
@@ -85,8 +92,9 @@ public class UserService {
 
     // Đổi mật khẩu cho user hiện tại
     public void changePassword(ChangePasswordRequest request) {
-        var context = SecurityContextHolder.getContext();
-        String userId = context.getAuthentication().getName();
+        String userId = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
