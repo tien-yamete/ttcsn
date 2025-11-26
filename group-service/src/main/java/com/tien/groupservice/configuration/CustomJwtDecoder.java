@@ -22,7 +22,7 @@ public class CustomJwtDecoder implements JwtDecoder {
 					signedJWT.getHeader().toJSONObject(),
 					signedJWT.getJWTClaimsSet().getClaims());
 		} catch (ParseException exception) {
-			throw new JwtException("Invalid Token");
+			throw new JwtException("Token không hợp lệ");
 		}
 	}
 }

@@ -36,7 +36,7 @@ public class CustomJwtDecoder implements JwtDecoder {
 
         } catch (ParseException e) {
             log.error("Failed to parse JWT token", e);
-            throw new JwtException("Invalid token", e);
+            throw new JwtException("Token không hợp lệ", e);
         }
     }
 }

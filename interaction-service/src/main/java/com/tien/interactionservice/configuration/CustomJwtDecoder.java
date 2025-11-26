@@ -23,7 +23,7 @@ public class CustomJwtDecoder implements JwtDecoder {
 
             var expirationTime = claimsSet.getExpirationTime();
             if (expirationTime == null) {
-                throw new JwtException("Token missing expiration time");
+                throw new JwtException("Token thiếu thời gian hết hạn");
             }
 
             return new Jwt(
@@ -33,9 +33,9 @@ public class CustomJwtDecoder implements JwtDecoder {
                     signedJWT.getHeader().toJSONObject(),
                     claimsSet.getClaims());
         } catch (ParseException exception) {
-            throw new JwtException("Invalid Token: " + exception.getMessage());
+            throw new JwtException("Token không hợp lệ: " + exception.getMessage());
         } catch (Exception exception) {
-            throw new JwtException("Failed to decode token: " + exception.getMessage());
+            throw new JwtException("Không thể giải mã token: " + exception.getMessage());
         }
     }
 }

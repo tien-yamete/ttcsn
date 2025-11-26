@@ -7,16 +7,16 @@ import lombok.Getter;
 
 @Getter
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1001, "Uncategorized error", HttpStatus.BAD_REQUEST),
-    UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
-    UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
-    POST_EMPTY(1008, "Post is empty", HttpStatus.BAD_REQUEST),
-    POST_NOT_FOUND(1009, "Post not found", HttpStatus.NOT_FOUND),
-    POST_ALREADY_SAVED(1010, "Post already saved", HttpStatus.BAD_REQUEST),
-    POST_NOT_SAVED(1011, "Post not saved", HttpStatus.BAD_REQUEST),
-    POST_NOT_OWNER(1012, "You are not the owner of this post", HttpStatus.FORBIDDEN),
-    SHARED_POST_NOT_FOUND(1013, "Shared post not found", HttpStatus.NOT_FOUND),
+    UNCATEGORIZED_EXCEPTION(9999, "Lỗi không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY(1001, "Khóa không hợp lệ", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED(1006, "Chưa xác thực", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(1007, "Bạn không có quyền thực hiện hành động này", HttpStatus.FORBIDDEN),
+    POST_EMPTY(1008, "Bài viết trống", HttpStatus.BAD_REQUEST),
+    POST_NOT_FOUND(1009, "Không tìm thấy bài viết", HttpStatus.NOT_FOUND),
+    POST_ALREADY_SAVED(1010, "Bài viết đã được lưu", HttpStatus.BAD_REQUEST),
+    POST_NOT_SAVED(1011, "Bài viết chưa được lưu", HttpStatus.BAD_REQUEST),
+    POST_NOT_OWNER(1012, "Bạn không phải là chủ sở hữu của bài viết này", HttpStatus.FORBIDDEN),
+    SHARED_POST_NOT_FOUND(1013, "Không tìm thấy bài viết được chia sẻ", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

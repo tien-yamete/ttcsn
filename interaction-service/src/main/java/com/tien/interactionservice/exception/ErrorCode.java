@@ -6,17 +6,17 @@ import org.springframework.http.HttpStatusCode;
 
 @Getter
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(1001, "Invalid key", HttpStatus.BAD_REQUEST),
-    UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
-    UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
-    POST_NOT_FOUND(1009, "Post not found", HttpStatus.NOT_FOUND),
-    COMMENT_NOT_FOUND(2001, "Comment not found", HttpStatus.NOT_FOUND),
-    INVALID_PARENT_COMMENT(2002, "Invalid parent comment", HttpStatus.BAD_REQUEST),
-    LIKE_NOT_FOUND(2003, "Like not found", HttpStatus.NOT_FOUND),
-    ALREADY_LIKED(2004, "Already liked", HttpStatus.BAD_REQUEST),
-    INVALID_LIKE_REQUEST(2005, "Invalid like request. Must provide either postId or commentId", HttpStatus.BAD_REQUEST),
-    USER_NOT_FOUND(2006, "User not found", HttpStatus.NOT_FOUND),
+    UNCATEGORIZED_EXCEPTION(9999, "Lỗi không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY(1001, "Khóa không hợp lệ", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED(1006, "Chưa xác thực", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(1007, "Bạn không có quyền thực hiện hành động này", HttpStatus.FORBIDDEN),
+    POST_NOT_FOUND(1009, "Không tìm thấy bài viết", HttpStatus.NOT_FOUND),
+    COMMENT_NOT_FOUND(2001, "Không tìm thấy bình luận", HttpStatus.NOT_FOUND),
+    INVALID_PARENT_COMMENT(2002, "Bình luận cha không hợp lệ", HttpStatus.BAD_REQUEST),
+    LIKE_NOT_FOUND(2003, "Không tìm thấy lượt thích", HttpStatus.NOT_FOUND),
+    ALREADY_LIKED(2004, "Đã thích rồi", HttpStatus.BAD_REQUEST),
+    INVALID_LIKE_REQUEST(2005, "Yêu cầu thích không hợp lệ", HttpStatus.BAD_REQUEST),
+    USER_NOT_FOUND(2006, "Không tìm thấy người dùng", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
