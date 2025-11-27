@@ -13,9 +13,12 @@ public interface GroupClient {
     @GetMapping("/internal/groups/{groupId}/exists")
     ApiResponse<Boolean> checkGroupExists(@PathVariable String groupId);
 
-    @GetMapping("/internal/groups/{groupId}/can-post")
-    ApiResponse<Boolean> canPost(@PathVariable String groupId);
+	@GetMapping("/internal/groups/{groupId}/can-post")
+	ApiResponse<Boolean> canPost(@PathVariable String groupId);
 
-    @GetMapping("/internal/groups/{groupId}")
-    ApiResponse<GroupResponse> getGroup(@PathVariable String groupId);
+	@GetMapping("/internal/groups/{groupId}/can-view")
+	ApiResponse<Boolean> canViewPosts(@PathVariable String groupId);
+
+	@GetMapping("/internal/groups/{groupId}")
+	ApiResponse<GroupResponse> getGroup(@PathVariable String groupId);
 }

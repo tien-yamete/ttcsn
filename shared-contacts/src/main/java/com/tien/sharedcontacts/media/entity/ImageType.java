@@ -3,5 +3,7 @@ package com.tien.sharedcontacts.media.entity;
 public enum ImageType {
     AVATAR,
     POST_IMAGE,
-    BACKGROUND_IMAGE
+    BACKGROUND_IMAGE,
+    GROUP_AVATAR,
+    GROUP_COVER
 }

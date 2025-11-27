@@ -16,8 +16,6 @@ import lombok.experimental.FieldDefaults;
 public class UpdateGroupRequest {
 	String name;
 	String description;
-	String coverImageUrl;
-	String avatarUrl;
 	GroupPrivacy privacy;
 	Boolean requiresApproval;
 	Boolean allowPosting;

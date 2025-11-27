@@ -15,7 +15,9 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/groups")
@@ -45,6 +47,34 @@ public class GroupController {
 	ApiResponse<Void> deleteGroup(@PathVariable String groupId) {
 		groupService.deleteGroup(groupId);
 		return ApiResponse.<Void>builder().build();
+	}
+
+	@PutMapping(value = "/{groupId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	ApiResponse<GroupResponse> uploadGroupAvatar(
+			@PathVariable String groupId,
+			@RequestParam("file") MultipartFile file) {
+		return ApiResponse.<GroupResponse>builder()
+				.result(groupService.uploadGroupAvatar(groupId, file))
+				.build();
+	}
+
+	@PutMapping(value = "/{groupId}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	ApiResponse<GroupResponse> uploadGroupCover(
+			@PathVariable String groupId,
+			@RequestParam("file") MultipartFile file) {
+		return ApiResponse.<GroupResponse>builder()
+				.result(groupService.uploadGroupCover(groupId, file))
+				.build();
+	}
+
+	@GetMapping
+	ApiResponse<PageResponse<GroupResponse>> getAllGroups(
+			@RequestParam(value = "privacy", required = false) String privacy,
+			@RequestParam(value = "page", required = false, defaultValue = "1") int page,
+			@RequestParam(value = "size", required = false, defaultValue = "10") int size) {
+		return ApiResponse.<PageResponse<GroupResponse>>builder()
+				.result(groupService.getAllGroups(privacy, page, size))
+				.build();
 	}
 
 	@GetMapping("/{groupId}")
@@ -83,10 +113,11 @@ public class GroupController {
 	@GetMapping("/{groupId}/members")
 	ApiResponse<PageResponse<GroupMemberResponse>> getGroupMembers(
 			@PathVariable String groupId,
+			@RequestParam(value = "role", required = false) String role,
 			@RequestParam(value = "page", required = false, defaultValue = "1") int page,
 			@RequestParam(value = "size", required = false, defaultValue = "10") int size) {
 		return ApiResponse.<PageResponse<GroupMemberResponse>>builder()
-				.result(groupService.getGroupMembers(groupId, page, size))
+				.result(groupService.getGroupMembers(groupId, role, page, size))
 				.build();
 	}
 
@@ -125,6 +156,23 @@ public class GroupController {
 			@RequestParam(value = "size", required = false, defaultValue = "10") int size) {
 		return ApiResponse.<PageResponse<JoinRequestResponse>>builder()
 				.result(groupService.getJoinRequests(groupId, page, size))
+				.build();
+	}
+
+	@DeleteMapping("/{groupId}/join-requests/{requestId}")
+	ApiResponse<Void> cancelJoinRequest(
+			@PathVariable String groupId,
+			@PathVariable String requestId) {
+		groupService.cancelJoinRequest(groupId, requestId);
+		return ApiResponse.<Void>builder().build();
+	}
+
+	@GetMapping("/my-join-requests")
+	ApiResponse<PageResponse<JoinRequestResponse>> getMyJoinRequests(
+			@RequestParam(value = "page", required = false, defaultValue = "1") int page,
+			@RequestParam(value = "size", required = false, defaultValue = "10") int size) {
+		return ApiResponse.<PageResponse<JoinRequestResponse>>builder()
+				.result(groupService.getMyJoinRequests(page, size))
 				.build();
 	}
 

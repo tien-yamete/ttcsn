@@ -289,6 +289,8 @@ public class ImageService {
             case AVATAR -> "avatars/%s".formatted(ownerId);
             case POST_IMAGE -> "posts/%s/%s".formatted(ownerId, postId);
             case BACKGROUND_IMAGE ->  "backgrounds/%s".formatted(ownerId);
+            case GROUP_AVATAR -> "groups/%s/avatar".formatted(ownerId);
+            case GROUP_COVER -> "groups/%s/cover".formatted(ownerId);
         };
     }
 

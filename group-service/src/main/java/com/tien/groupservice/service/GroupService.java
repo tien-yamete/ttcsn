@@ -30,12 +30,14 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -54,8 +56,10 @@ public class GroupService {
 	JoinRequestMapper joinRequestMapper;
 	ProfileClient profileClient;
 	DateTimeFormatter dateTimeFormatter;
+	ImageUploadKafkaService imageUploadKafkaService;
 
 	// Group CRUD operations
+	@Transactional
 	public GroupResponse createGroup(CreateGroupRequest request) {
 		String userId = getCurrentUserId();
 
@@ -92,6 +96,7 @@ public class GroupService {
 		return buildGroupResponse(group, userId);
 	}
 
+	@Transactional
 	public GroupResponse updateGroup(String groupId, UpdateGroupRequest request) {
 		String userId = getCurrentUserId();
 		Group group = groupRepository.findById(groupId)
@@ -107,12 +112,6 @@ public class GroupService {
 		}
 		if (request.getDescription() != null) {
 			group.setDescription(request.getDescription());
-		}
-		if (request.getCoverImageUrl() != null) {
-			group.setCoverImageUrl(request.getCoverImageUrl());
-		}
-		if (request.getAvatarUrl() != null) {
-			group.setAvatarUrl(request.getAvatarUrl());
 		}
 		if (request.getPrivacy() != null) {
 			group.setPrivacy(request.getPrivacy());
@@ -136,6 +135,84 @@ public class GroupService {
 		return buildGroupResponse(group, userId);
 	}
 
+	@Transactional
+	public GroupResponse uploadGroupAvatar(String groupId, MultipartFile file) {
+		// Validate auth
+		String userId = getCurrentUserId();
+		if (userId == null || userId.trim().isEmpty()) {
+			throw new AppException(ErrorCode.UNAUTHORIZED);
+		}
+
+		// Validate file
+		if (file == null || file.isEmpty()) {
+			throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+		}
+
+		Group group = groupRepository.findById(groupId)
+				.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+		// Chỉ owner hoặc admin mới được upload avatar
+		if (!group.getOwnerId().equals(userId)) {
+			// Kiểm tra xem user có phải admin không
+			GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+					.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_OWNER));
+			if (member.getRole() != MemberRole.ADMIN) {
+				throw new AppException(ErrorCode.GROUP_NOT_OWNER);
+			}
+		}
+
+		// Upload file using Kafka
+		try {
+			var uploadedEvent = imageUploadKafkaService.uploadGroupAvatar(file, groupId);
+			group.setAvatarUrl(uploadedEvent.imageUrl());
+		} catch (Exception e) {
+			log.error("Failed to upload group avatar via Kafka: {}", e.getMessage(), e);
+			throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+		}
+
+		group.setModifiedDate(Instant.now());
+		return buildGroupResponse(groupRepository.save(group), userId);
+	}
+
+	@Transactional
+	public GroupResponse uploadGroupCover(String groupId, MultipartFile file) {
+		// Validate auth
+		String userId = getCurrentUserId();
+		if (userId == null || userId.trim().isEmpty()) {
+			throw new AppException(ErrorCode.UNAUTHORIZED);
+		}
+
+		// Validate file
+		if (file == null || file.isEmpty()) {
+			throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+		}
+
+		Group group = groupRepository.findById(groupId)
+				.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+		// Chỉ owner hoặc admin mới được upload cover
+		if (!group.getOwnerId().equals(userId)) {
+			// Kiểm tra xem user có phải admin không
+			GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+					.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_OWNER));
+			if (member.getRole() != MemberRole.ADMIN) {
+				throw new AppException(ErrorCode.GROUP_NOT_OWNER);
+			}
+		}
+
+		// Upload file using Kafka
+		try {
+			var uploadedEvent = imageUploadKafkaService.uploadGroupCover(file, groupId);
+			group.setCoverImageUrl(uploadedEvent.imageUrl());
+		} catch (Exception e) {
+			log.error("Failed to upload group cover via Kafka: {}", e.getMessage(), e);
+			throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+		}
+
+		group.setModifiedDate(Instant.now());
+		return buildGroupResponse(groupRepository.save(group), userId);
+	}
+
 	public void deleteGroup(String groupId) {
 		String userId = getCurrentUserId();
 		Group group = groupRepository.findById(groupId)
@@ -152,6 +229,43 @@ public class GroupService {
 		joinRequestRepository.deleteAllByGroupId(groupId);
 		// Xóa group
 		groupRepository.delete(group);
+	}
+
+	public PageResponse<GroupResponse> getAllGroups(String privacy, int page, int size) {
+		String userId = getCurrentUserId();
+		Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
+
+		Page<Group> pageData;
+		
+		// Nếu có filter theo privacy
+		if (privacy != null && !privacy.trim().isEmpty()) {
+			try {
+				GroupPrivacy privacyFilter = GroupPrivacy.valueOf(privacy.toUpperCase());
+				// Chỉ cho phép lấy PUBLIC và CLOSED, không cho lấy PRIVATE
+				if (privacyFilter == GroupPrivacy.PRIVATE) {
+					throw new AppException(ErrorCode.UNAUTHORIZED);
+				}
+				pageData = groupRepository.findByPrivacy(privacyFilter, pageable);
+			} catch (IllegalArgumentException e) {
+				throw new AppException(ErrorCode.INVALID_KEY);
+			}
+		} else {
+			// Mặc định lấy PUBLIC và CLOSED groups
+			List<GroupPrivacy> searchablePrivacies = List.of(GroupPrivacy.PUBLIC, GroupPrivacy.CLOSED);
+			pageData = groupRepository.findByPrivacyIn(searchablePrivacies, pageable);
+		}
+
+		var groupList = pageData.getContent().stream()
+				.map(group -> buildGroupResponse(group, userId))
+				.toList();
+
+		return PageResponse.<GroupResponse>builder()
+				.currentPage(page)
+				.pageSize(pageData.getSize())
+				.totalPages(pageData.getTotalPages())
+				.totalElements(pageData.getTotalElements())
+				.data(groupList)
+				.build();
 	}
 
 	public GroupResponse getGroupById(String groupId) {
@@ -425,7 +539,7 @@ public class GroupService {
 				.build();
 	}
 
-	public PageResponse<GroupMemberResponse> getGroupMembers(String groupId, int page, int size) {
+	public PageResponse<GroupMemberResponse> getGroupMembers(String groupId, String role, int page, int size) {
 		String userId = getCurrentUserId();
 		Group group = groupRepository.findById(groupId)
 				.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
@@ -436,7 +550,19 @@ public class GroupService {
 		}
 
 		Pageable pageable = PageRequest.of(page - 1, size, Sort.by("joinedDate").ascending());
-		var pageData = groupMemberRepository.findByGroupId(groupId, pageable);
+		Page<GroupMember> pageData;
+
+		// Filter theo role nếu có
+		if (role != null && !role.trim().isEmpty()) {
+			try {
+				MemberRole memberRole = MemberRole.valueOf(role.toUpperCase());
+				pageData = groupMemberRepository.findByGroupIdAndRole(groupId, memberRole, pageable);
+			} catch (IllegalArgumentException e) {
+				throw new AppException(ErrorCode.INVALID_ROLE);
+			}
+		} else {
+			pageData = groupMemberRepository.findByGroupId(groupId, pageable);
+		}
 
 		var memberList = pageData.getContent().stream()
 				.map(member -> buildGroupMemberResponse(member))
@@ -475,6 +601,47 @@ public class GroupService {
 				.build();
 	}
 
+	@Transactional
+	public void cancelJoinRequest(String groupId, String requestId) {
+		String userId = getCurrentUserId();
+		Group group = groupRepository.findById(groupId)
+				.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+		JoinRequest joinRequest = joinRequestRepository.findById(requestId)
+				.filter(jr -> jr.getGroupId().equals(groupId))
+				.orElseThrow(() -> new AppException(ErrorCode.JOIN_REQUEST_NOT_FOUND));
+
+		// Chỉ người gửi request mới được hủy
+		if (!joinRequest.getUserId().equals(userId)) {
+			throw new AppException(ErrorCode.UNAUTHORIZED);
+		}
+
+		// Chỉ hủy được request đang PENDING
+		if (joinRequest.getStatus() != RequestStatus.PENDING) {
+			throw new AppException(ErrorCode.JOIN_REQUEST_NOT_FOUND);
+		}
+
+		joinRequestRepository.delete(joinRequest);
+	}
+
+	public PageResponse<JoinRequestResponse> getMyJoinRequests(int page, int size) {
+		String userId = getCurrentUserId();
+		Pageable pageable = PageRequest.of(page - 1, size, Sort.by("requestedDate").descending());
+		var pageData = joinRequestRepository.findByUserId(userId, pageable);
+
+		var requestList = pageData.getContent().stream()
+				.map(this::buildJoinRequestResponse)
+				.toList();
+
+		return PageResponse.<JoinRequestResponse>builder()
+				.currentPage(page)
+				.pageSize(pageData.getSize())
+				.totalPages(pageData.getTotalPages())
+				.totalElements(pageData.getTotalElements())
+				.data(requestList)
+				.build();
+	}
+
 	// Permission checking
 	public boolean canPost(String groupId) {
 		String userId = getCurrentUserId();
@@ -493,6 +660,58 @@ public class GroupService {
 
 		// Kiểm tra phải là member
 		return isMember(groupId, userId);
+	}
+
+	/**
+	 * Kiểm tra quyền xem post trong group dựa trên privacy của group
+	 * - PUBLIC: Ai cũng xem được
+	 * - PRIVATE: Chỉ members mới xem được
+	 * - CLOSED: Ai cũng xem được (nhưng cần join mới tham gia)
+	 */
+	public boolean canViewPosts(String groupId) {
+		String userId = getCurrentUserId();
+		Group group = groupRepository.findById(groupId)
+				.orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+		// PUBLIC và CLOSED: ai cũng xem được
+		if (group.getPrivacy() == GroupPrivacy.PUBLIC || group.getPrivacy() == GroupPrivacy.CLOSED) {
+			return true;
+		}
+
+		// PRIVATE: chỉ members mới xem được
+		if (group.getPrivacy() == GroupPrivacy.PRIVATE) {
+			return isMember(groupId, userId) || group.getOwnerId().equals(userId);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Kiểm tra quyền xem post trong group (internal API, không cần authentication context)
+	 */
+	public boolean canViewPostsInternal(String groupId, String userId) {
+		if (groupId == null || userId == null) {
+			return false;
+		}
+
+		Group group = groupRepository.findById(groupId)
+				.orElse(null);
+
+		if (group == null) {
+			return false;
+		}
+
+		// PUBLIC và CLOSED: ai cũng xem được
+		if (group.getPrivacy() == GroupPrivacy.PUBLIC || group.getPrivacy() == GroupPrivacy.CLOSED) {
+			return true;
+		}
+
+		// PRIVATE: chỉ members mới xem được
+		if (group.getPrivacy() == GroupPrivacy.PRIVATE) {
+			return isMember(groupId, userId) || group.getOwnerId().equals(userId);
+		}
+
+		return false;
 	}
 
 	public boolean checkGroupExists(String groupId) {

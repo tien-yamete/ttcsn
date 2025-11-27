@@ -2,12 +2,16 @@ package com.tien.groupservice.dto.response;
 
 import com.tien.groupservice.entity.GroupPrivacy;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class GroupResponse {
 	String id;

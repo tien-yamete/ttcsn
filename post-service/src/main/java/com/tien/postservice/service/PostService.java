@@ -583,6 +583,17 @@ public class PostService {
     public PageResponse<PostResponse> getPostsByGroup(String groupId, int page, int size) {
         String userId = getCurrentUserId();
 
+        // Kiểm tra quyền xem post trong group dựa trên group privacy
+        try {
+            var canViewResponse = groupClient.canViewPosts(groupId);
+            if (canViewResponse == null || canViewResponse.getResult() == null || !canViewResponse.getResult()) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        } catch (Exception e) {
+            log.error("Error checking view permission for group: {}", groupId, e);
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
         Pageable pageable =
                 PageRequest.of(page - 1, size, Sort.by("createdDate").descending());
         var pageData = postRepository.findByGroupIdWithPrivacy(groupId, userId, pageable);

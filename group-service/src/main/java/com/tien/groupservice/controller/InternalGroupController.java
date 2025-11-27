@@ -37,5 +37,21 @@ public class InternalGroupController {
 				.result(groupService.canPost(groupId))
 				.build();
 	}
+
+	@GetMapping("/groups/{groupId}/can-view")
+	ApiResponse<Boolean> canViewPosts(@PathVariable String groupId) {
+		return ApiResponse.<Boolean>builder()
+				.result(groupService.canViewPosts(groupId))
+				.build();
+	}
+
+	@GetMapping("/groups/{groupId}/can-view/{userId}")
+	ApiResponse<Boolean> canViewPostsInternal(
+			@PathVariable String groupId,
+			@PathVariable String userId) {
+		return ApiResponse.<Boolean>builder()
+				.result(groupService.canViewPostsInternal(groupId, userId))
+				.build();
+	}
 }
 
