@@ -24,5 +24,7 @@ public interface JoinRequestRepository extends MongoRepository<JoinRequest, Stri
 	void deleteByGroupIdAndUserId(String groupId, String userId);
 
 	void deleteAllByGroupId(String groupId);
+
+	long countByGroupIdAndStatus(String groupId, RequestStatus status);
 }
 

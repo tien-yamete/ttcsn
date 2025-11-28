@@ -28,4 +28,6 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, String> {
 
     @Query("SELECT ub.blockedId FROM UserBlock ub WHERE ub.blockerId = :userId")
     List<String> findBlockedUserIds(@Param("userId") String userId);
+
+    long countByBlockerId(String blockerId);
 }

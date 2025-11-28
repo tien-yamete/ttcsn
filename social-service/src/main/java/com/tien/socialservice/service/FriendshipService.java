@@ -1,6 +1,10 @@
 package com.tien.socialservice.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
@@ -12,12 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 import com.tien.socialservice.dto.PageResponse;
 import com.tien.socialservice.dto.request.SearchUserRequest;
 import com.tien.socialservice.dto.response.FriendshipResponse;
+import com.tien.socialservice.dto.response.FriendshipStatusResponse;
 import com.tien.socialservice.dto.response.ProfileResponse;
+import com.tien.socialservice.dto.response.SocialCountsResponse;
 import com.tien.socialservice.entity.Friendship;
 import com.tien.socialservice.entity.FriendshipStatus;
 import com.tien.socialservice.exception.AppException;
 import com.tien.socialservice.exception.ErrorCode;
 import com.tien.socialservice.mapper.FriendshipMapper;
+import com.tien.socialservice.repository.FollowRepository;
 import com.tien.socialservice.repository.FriendshipRepository;
 import com.tien.socialservice.repository.UserBlockRepository;
 import com.tien.socialservice.repository.httpclient.ProfileClient;
@@ -39,6 +46,8 @@ public class FriendshipService {
     FriendshipMapper friendshipMapper;
 
     ProfileClient profileClient;
+
+    FollowRepository followRepository;
 
     @Transactional
     public FriendshipResponse sendFriendRequest(String userId, String friendId) {
@@ -160,7 +169,7 @@ public class FriendshipService {
 
         try {
             // Lấy danh sách blocked users
-            var blockedUserIds = new java.util.HashSet<>(userBlockRepository.findBlockedUserIds(userId));
+            var blockedUserIds = new HashSet<>(userBlockRepository.findBlockedUserIds(userId));
             blockedUserIds.add(userId); // Loại trừ chính user hiện tại
 
             // Tìm kiếm users từ profile service
@@ -222,5 +231,161 @@ public class FriendshipService {
                     }
                 })
                 .toList();
+    }
+
+    public List<ProfileResponse> getMutualFriends(String userId1, String userId2) {
+        if (userId1.equals(userId2)) {
+            return List.of();
+        }
+
+        try {
+            // Lấy danh sách ID của bạn chung
+            List<String> mutualFriendIds = friendshipRepository.findMutualFriendIds(userId1, userId2);
+
+            if (mutualFriendIds.isEmpty()) {
+                return List.of();
+            }
+
+            // Lấy thông tin profile của bạn chung
+            var blockedUserIds = new HashSet<>(userBlockRepository.findBlockedUserIds(userId1));
+            blockedUserIds.add(userId1); // Loại trừ chính user
+
+            List<ProfileResponse> mutualFriends = new ArrayList<>();
+            for (String friendId : mutualFriendIds) {
+                if (!blockedUserIds.contains(friendId)) {
+                    try {
+                        var profileResponse = profileClient.getProfileByUserId(friendId);
+                        if (profileResponse != null && profileResponse.getResult() != null) {
+                            mutualFriends.add(profileResponse.getResult());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to get profile for user {}: {}", friendId, e.getMessage());
+                    }
+                }
+            }
+
+            return mutualFriends;
+        } catch (Exception e) {
+            log.error("Error while getting mutual friends: {}", e.getMessage(), e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    public List<ProfileResponse> getSuggestedFriends(String userId, int limit) {
+        try {
+            // Lấy danh sách bạn bè hiện tại
+            List<String> friendIds = getFriendIds(userId);
+            if (friendIds.isEmpty()) {
+                return List.of();
+            }
+
+            // Lấy danh sách blocked users
+            var blockedUserIds = new HashSet<>(userBlockRepository.findBlockedUserIds(userId));
+            blockedUserIds.add(userId); // Loại trừ chính user
+
+            // Map để đếm số bạn chung với mỗi user được gợi ý
+            Map<String, Integer> mutualCountMap = new HashMap<>();
+
+            // Với mỗi bạn bè, tìm bạn của họ
+            for (String friendId : friendIds) {
+                List<Friendship> friendFriendships = friendshipRepository.findAllFriends(friendId);
+                for (Friendship friendship : friendFriendships) {
+                    String suggestedUserId = friendship.getUserId().equals(friendId)
+                            ? friendship.getFriendId()
+                            : friendship.getUserId();
+
+                    // Bỏ qua nếu:
+                    // - Là chính user
+                    // - Đã là bạn
+                    // - Bị block
+                    if (suggestedUserId.equals(userId)
+                            || friendIds.contains(suggestedUserId)
+                            || blockedUserIds.contains(suggestedUserId)) {
+                        continue;
+                    }
+
+                    // Tăng số bạn chung
+                    mutualCountMap.put(suggestedUserId, mutualCountMap.getOrDefault(suggestedUserId, 0) + 1);
+                }
+            }
+
+            // Sắp xếp theo số bạn chung giảm dần và lấy top N
+            List<String> suggestedUserIds = mutualCountMap.entrySet().stream()
+                    .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                    .limit(limit)
+                    .map(Map.Entry::getKey)
+                    .toList();
+
+            if (suggestedUserIds.isEmpty()) {
+                return List.of();
+            }
+
+            // Lấy thông tin profile
+            List<ProfileResponse> suggestedFriends = new ArrayList<>();
+            for (String suggestedUserId : suggestedUserIds) {
+                try {
+                    var profileResponse = profileClient.getProfileByUserId(suggestedUserId);
+                    if (profileResponse != null && profileResponse.getResult() != null) {
+                        suggestedFriends.add(profileResponse.getResult());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to get profile for user {}: {}", suggestedUserId, e.getMessage());
+                }
+            }
+
+            return suggestedFriends;
+        } catch (Exception e) {
+            log.error("Error while getting suggested friends: {}", e.getMessage(), e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    public long getPendingFriendRequestsCount(String userId) {
+        return friendshipRepository.countReceivedFriendRequests(userId, FriendshipStatus.PENDING);
+    }
+
+    @Transactional
+    public void cancelFriendRequest(String userId, String friendId) {
+        Friendship friendship = friendshipRepository
+                .findByUserIdAndFriendIdAndStatus(userId, friendId, FriendshipStatus.PENDING)
+                .orElseThrow(() -> new AppException(ErrorCode.FRIEND_REQUEST_NOT_PENDING));
+
+        friendshipRepository.delete(friendship);
+
+        log.info("User {} cancelled friend request to user {}", userId, friendId);
+    }
+
+    public long getFriendCount(String userId) {
+        return friendshipRepository.countFriends(userId);
+    }
+
+    public long getSentFriendRequestsCount(String userId) {
+        return friendshipRepository.countSentFriendRequests(userId, FriendshipStatus.PENDING);
+    }
+
+    public Map<String, String> batchCheckFriendshipStatus(String userId, List<String> friendIds) {
+        Map<String, String> statusMap = new HashMap<>();
+        for (String friendId : friendIds) {
+            statusMap.put(friendId, getFriendshipStatus(userId, friendId));
+        }
+        return statusMap;
+    }
+
+    public SocialCountsResponse getAllSocialCounts(String userId) {
+        long friendsCount = getFriendCount(userId);
+        long followersCount = followRepository.countByFollowingId(userId);
+        long followingCount = followRepository.countByFollowerId(userId);
+        long pendingFriendRequestsCount = getPendingFriendRequestsCount(userId);
+        long sentFriendRequestsCount = getSentFriendRequestsCount(userId);
+        long blockedUsersCount = userBlockRepository.countByBlockerId(userId);
+
+        return SocialCountsResponse.builder()
+                .friendsCount(friendsCount)
+                .followersCount(followersCount)
+                .followingCount(followingCount)
+                .pendingFriendRequestsCount(pendingFriendRequestsCount)
+                .sentFriendRequestsCount(sentFriendRequestsCount)
+                .blockedUsersCount(blockedUsersCount)
+                .build();
     }
 }

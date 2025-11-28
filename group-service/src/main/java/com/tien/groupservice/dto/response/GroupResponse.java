@@ -28,6 +28,7 @@ public class GroupResponse {
 	boolean moderationRequired;
 	boolean onlyAdminCanPost;
 	long memberCount;
+	long pendingRequestCount; // Số lượng join requests đang chờ (chỉ admin/moderator thấy)
 	String createdDate;
 	String modifiedDate;
 	boolean isMember;

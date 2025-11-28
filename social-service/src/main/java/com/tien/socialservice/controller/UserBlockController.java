@@ -45,4 +45,12 @@ public class UserBlockController {
                 .result(userBlockService.getBlockedUsers(userId, page, size))
                 .build();
     }
+
+    @GetMapping("/check/{blockedId}")
+    ApiResponse<Boolean> checkBlocked(@PathVariable String blockedId) {
+        String blockerId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ApiResponse.<Boolean>builder()
+                .result(userBlockService.checkBlocked(blockerId, blockedId))
+                .build();
+    }
 }

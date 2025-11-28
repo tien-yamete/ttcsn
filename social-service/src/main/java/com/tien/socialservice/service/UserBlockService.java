@@ -97,4 +97,8 @@ public class UserBlockService {
     public List<String> getBlockedUserIds(String userId) {
         return userBlockRepository.findBlockedUserIds(userId);
     }
+
+    public boolean checkBlocked(String blockerId, String blockedId) {
+        return userBlockRepository.isBlocked(blockerId, blockedId);
+    }
 }

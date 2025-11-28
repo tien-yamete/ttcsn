@@ -35,6 +35,15 @@ public interface FriendshipRepository extends JpaRepository<Friendship, String> 
     Page<Friendship> findReceivedFriendRequests(
             @Param("userId") String userId, @Param("status") FriendshipStatus status, Pageable pageable);
 
+    @Query("SELECT COUNT(f) FROM Friendship f WHERE f.friendId = :userId AND f.status = :status")
+    long countReceivedFriendRequests(@Param("userId") String userId, @Param("status") FriendshipStatus status);
+
+    @Query("SELECT COUNT(f) FROM Friendship f WHERE f.userId = :userId AND f.status = :status")
+    long countSentFriendRequests(@Param("userId") String userId, @Param("status") FriendshipStatus status);
+
+    @Query("SELECT COUNT(f) FROM Friendship f WHERE (f.userId = :userId OR f.friendId = :userId) AND f.status = 'ACCEPTED'")
+    long countFriends(@Param("userId") String userId);
+
     @Query("SELECT f FROM Friendship f WHERE (f.userId = :userId OR f.friendId = :userId) AND f.status = 'ACCEPTED'")
     List<Friendship> findAllFriends(@Param("userId") String userId);
 
@@ -48,4 +57,21 @@ public interface FriendshipRepository extends JpaRepository<Friendship, String> 
     @Query(
             "DELETE FROM Friendship f WHERE (f.userId = :userId AND f.friendId = :friendId) OR (f.userId = :friendId AND f.friendId = :userId)")
     void deleteFriendship(@Param("userId") String userId, @Param("friendId") String friendId);
+
+    // Tìm bạn chung giữa 2 user
+    @Query("SELECT DISTINCT CASE " +
+            "WHEN f1.userId = :userId1 THEN f1.friendId " +
+            "ELSE f1.userId " +
+            "END " +
+            "FROM Friendship f1 " +
+            "WHERE f1.status = 'ACCEPTED' " +
+            "AND (f1.userId = :userId1 OR f1.friendId = :userId1) " +
+            "AND EXISTS (" +
+            "  SELECT 1 FROM Friendship f2 " +
+            "  WHERE f2.status = 'ACCEPTED' " +
+            "  AND (f2.userId = :userId2 OR f2.friendId = :userId2) " +
+            "  AND (CASE WHEN f1.userId = :userId1 THEN f1.friendId ELSE f1.userId END = " +
+            "       CASE WHEN f2.userId = :userId2 THEN f2.friendId ELSE f2.userId END)" +
+            ")")
+    List<String> findMutualFriendIds(@Param("userId1") String userId1, @Param("userId2") String userId2);
 }

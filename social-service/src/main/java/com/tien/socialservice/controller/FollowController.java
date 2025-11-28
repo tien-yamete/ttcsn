@@ -65,13 +65,4 @@ public class FollowController {
                 .result(followService.getUserSocialInfo(currentUserId, userId))
                 .build();
     }
-
-    @GetMapping("/check/{followingId}")
-    ApiResponse<Boolean> checkFollowing(@PathVariable String followingId) {
-        String followerId =
-                SecurityContextHolder.getContext().getAuthentication().getName();
-        return ApiResponse.<Boolean>builder()
-                .result(followService.checkFollowing(followerId, followingId))
-                .build();
-    }
 }

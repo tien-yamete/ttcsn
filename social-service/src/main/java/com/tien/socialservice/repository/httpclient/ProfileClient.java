@@ -15,4 +15,7 @@ import com.tien.socialservice.dto.response.ProfileResponse;
 public interface ProfileClient {
     @PostMapping("/users/search")
     ApiResponse<List<ProfileResponse>> searchUsers(@RequestBody SearchUserRequest request);
+
+    @org.springframework.web.bind.annotation.GetMapping("/internal/users/{userId}")
+    ApiResponse<ProfileResponse> getProfileByUserId(@org.springframework.web.bind.annotation.PathVariable String userId);
 }

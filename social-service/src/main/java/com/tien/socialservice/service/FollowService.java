@@ -132,10 +132,6 @@ public class FollowService {
                 .build();
     }
 
-    public boolean checkFollowing(String followerId, String followingId) {
-        return followRepository.existsByFollowerIdAndFollowingId(followerId, followingId);
-    }
-
     public List<String> getFollowingIds(String userId) {
         return followRepository.findFollowingIdsByUserId(userId);
     }

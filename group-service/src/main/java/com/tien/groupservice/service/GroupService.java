@@ -775,6 +775,14 @@ public class GroupService {
 		long memberCount = groupMemberRepository.countByGroupId(group.getId());
 		response.setMemberCount(memberCount);
 
+		// Set pending request count (chỉ admin/moderator mới thấy)
+		if (isAdminOrModerator(group.getId(), currentUserId) || group.getOwnerId().equals(currentUserId)) {
+			long pendingRequestCount = joinRequestRepository.countByGroupIdAndStatus(group.getId(), RequestStatus.PENDING);
+			response.setPendingRequestCount(pendingRequestCount);
+		} else {
+			response.setPendingRequestCount(0);
+		}
+
 		// Set dates
 		response.setCreatedDate(dateTimeFormatter.format(group.getCreatedDate()));
 		response.setModifiedDate(dateTimeFormatter.format(group.getModifiedDate()));
