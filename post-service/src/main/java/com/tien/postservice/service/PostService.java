@@ -683,6 +683,7 @@ public class PostService {
 
         String currentUserId = getCurrentUserId();
         postResponse.setIsSaved(savedPostRepository.existsByUserIdAndPostId(currentUserId, post.getId()));
+        postResponse.setIsOwnerPost(post.getUserId().equals(currentUserId));
         postResponse.setShareCount(sharedPostRepository.countByPostId(post.getId()));
 
         try {

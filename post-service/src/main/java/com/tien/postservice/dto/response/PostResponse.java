@@ -34,6 +34,7 @@ public class PostResponse {
     Integer commentCount;
     Boolean isLiked;
     Boolean isSaved;
+    Boolean isOwnerPost;
     Long shareCount;
 
     // Original post info (khi là shared post)
