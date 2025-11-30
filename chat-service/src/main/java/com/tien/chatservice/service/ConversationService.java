@@ -71,7 +71,7 @@ public class ConversationService {
                 buildParticipantInfos(currentUserInfo, participantProfiles, typeConversation, true);
         String userIdHash = generateParticipantHash(participantInfos);
 
-        Conversation conversation = findOrCreateConversation(typeConversation, participantInfos, userIdHash);
+        Conversation conversation = findOrCreateConversation(typeConversation, participantInfos, userIdHash, request.getConversationName());
         return toConversationResponse(conversation);
     }
 
@@ -395,7 +395,7 @@ public class ConversationService {
     }
 
     private Conversation findOrCreateConversation(
-            TypeConversation typeConversation, List<ParticipantInfo> participantInfos, String userIdHash) {
+            TypeConversation typeConversation, List<ParticipantInfo> participantInfos, String userIdHash, String conversationName) {
         return conversationRepository
                 .findByParticipantsHash(userIdHash)
                 .filter(conv -> conv.getTypeConversation() == typeConversation)
@@ -420,15 +420,16 @@ public class ConversationService {
                     }
                     return conv;
                 })
-                .orElseGet(() -> createNewConversation(typeConversation, participantInfos, userIdHash));
+                .orElseGet(() -> createNewConversation(typeConversation, participantInfos, userIdHash, conversationName));
     }
 
     private Conversation createNewConversation(
-            TypeConversation typeConversation, List<ParticipantInfo> participantInfos, String userIdHash) {
+            TypeConversation typeConversation, List<ParticipantInfo> participantInfos, String userIdHash, String conversationName) {
         Conversation newConversation = Conversation.builder()
                 .typeConversation(typeConversation)
                 .participants(participantInfos)
                 .participantsHash(userIdHash)
+                .conversationName(conversationName)
                 .createdDate(Instant.now())
                 .modifiedDate(Instant.now())
                 .build();

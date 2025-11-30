@@ -57,6 +57,7 @@ public class WebSocketController {
             // Service sẽ tự lấy userId từ SecurityContextHolder (đã được set bởi interceptor)
             ChatMessageResponse response = chatMessageService.create(request);
 
+            response.setMe(false);
             messagingTemplate.convertAndSend("/topic/conversation/" + request.getConversationId(), response);
         } catch (Exception e) {
             log.error("Lỗi khi gửi tin nhắn qua WebSocket: {}", e.getMessage(), e);
